@@ -1,0 +1,37 @@
+{
+  "id": "sample",
+  "title": "灯台の港町",
+  "subtitle": "動作確認用の小さな世界",
+  "playerRole": "プレイヤーは、霧の多い港町ミナトハラに赴任したばかりの新任の灯台守。町の人とはまだ顔見知り程度。",
+  "world": "1950年代の日本の架空の港町ミナトハラ。漁業と小さな造船所で暮らす人口三千人ほどの町。秋から冬にかけて濃い霧と嵐が多く、灯台の灯りが漁船の命綱になっている。前任の灯台守は半年前に理由を告げずに町を去り、灯台には誰かが最近入った形跡がある。",
+  "rules": "魔法や超常現象は起きない。人物は自分の生活と利害で動く。灯台を留守にすると嵐の夜に漁船が危険にさらされる。",
+  "style": "落ち着いた文体で、潮の匂いや霧、灯りなどの情景を短く入れる。人物の会話は方言をごく軽く混ぜる。",
+  "time": {
+    "start": "1956-10-01",
+    "slots": ["朝", "昼", "夕方", "夜"],
+    "turnHint": "1ターンはおおむね1つの時間帯。長い移動や作業なら数時間帯〜数日進めてよい"
+  },
+  "worldStats": [
+    { "key": "town_mood", "label": "町の活気", "min": 0, "max": 100, "initial": 55 },
+    { "key": "storm", "label": "嵐の気配", "min": 0, "max": 100, "initial": 20 },
+    { "key": "mystery", "label": "前任者の謎の解明度", "min": 0, "max": 100, "initial": 0, "maxDelta": 15 }
+  ],
+  "playerStats": [
+    { "key": "stamina", "label": "体力", "min": 0, "max": 100, "initial": 80 },
+    { "key": "reputation", "label": "町での評判", "min": -100, "max": 100, "initial": 0 }
+  ],
+  "characterStats": [
+    { "key": "affinity", "label": "好感度", "min": -100, "max": 100, "initial": 0 },
+    { "key": "trust", "label": "信頼", "min": 0, "max": 100, "initial": 20 },
+    { "key": "suspicion", "label": "疑念", "min": 0, "max": 100, "initial": 10 }
+  ],
+  "locations": ["灯台", "港", "漁協", "喫茶「白波」", "造船所", "町役場", "岬の小道"],
+  "player": { "name": "あなた", "location": "灯台", "inventory": ["灯台の鍵", "古い航海日誌（前任者のもの）"] },
+  "characters": [
+    { "id": "tomoko", "name": "海野トモコ", "description": "喫茶「白波」の店主、40代。町の噂に詳しく面倒見がいいが、前任の灯台守の話になると口が重くなる。", "location": "喫茶「白波」", "stats": { "affinity": 15, "trust": 25 } },
+    { "id": "genzo", "name": "岩城ゲンゾウ", "description": "漁協の組合長、60代。頑固で口が悪いが漁師たちの命を何より重く見ている。新任の灯台守を信用していない。", "location": "漁協", "stats": { "affinity": -10, "trust": 10, "suspicion": 30 } },
+    { "id": "haru", "name": "白石ハル", "description": "造船所で働く20代の女性。好奇心が強く、灯台に出入りしていた人影を見たと言う。", "location": "造船所", "stats": { "affinity": 10, "trust": 20 } }
+  ],
+  "opening": "プレイヤーが灯台に着任した最初の朝を描写してください。灯台の様子、前任者が残した物、町から聞こえる音、最初にやって来る人物（3人のうち誰か）を入れてください。",
+  "theme": "default"
+}
