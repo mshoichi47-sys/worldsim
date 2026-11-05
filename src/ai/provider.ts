@@ -78,14 +78,29 @@ export function geminiProvider(apiKey: string, model: string): AIProvider {
             if (e.status === 400 && /api key/i.test(e.message)) throw new AIError('auth', 'APIキーが正しくないようです。設定を確認してください。')
             if (e.status === 401 || e.status === 403) throw new AIError('auth', 'APIキーが使えません。設定を確認してください。')
             if (e.status === 404) throw new AIError('other', `モデル「${model}」が見つかりません。設定で別のモデルを選んでください。`)
-            if (e.status >= 500 && attempt === 0) { await sleep(3000); continue }
-            throw new AIError('other', `Geminiのエラー（${e.status}）：${e.message}`)
+            // 500番台はGemini側の一時的な混雑・障害。間を空けて2回まで再試行する
+            if (e.status >= 500) {
+              if (attempt < 2) { await sleep(attempt === 0 ? 3000 : 8000); continue }
+              throw new AIError('other', 'Geminiが混雑していて応答できませんでした（Google側の一時的なものです）。少し待ってからもう一度送ってください。設定で別のモデルに変えると通ることもあります。')
+            }
+            throw new AIError('other', `Geminiのエラー（${e.status}）：${readableMessage(e.message)}`)
           }
           throw new AIError('network', `通信できませんでした：${(e as Error).message}`)
         }
       }
     },
   }
+}
+
+/** SDKのエラー文はJSONそのままのことがあるので、中のmessageだけを取り出す */
+function readableMessage(raw: string): string {
+  try {
+    const m = (JSON.parse(raw.slice(raw.indexOf('{'))) as { error?: { message?: string } }).error?.message
+    if (m) return m
+  } catch {
+    /* JSONでなければそのまま */
+  }
+  return raw
 }
 
 export function ollamaProvider(baseUrl: string, model: string): AIProvider {
