@@ -1,4 +1,4 @@
-import { addDays } from './state'
+import { checkSucceeds, fromOrdinal, nextEventOrdinal, nowOrdinal, type CheckLevel } from './rules'
 import type { GameState, RawOp, StatDef, WorldPack } from './types'
 
 export interface ApplyResult {
@@ -12,6 +12,7 @@ export interface ApplyResult {
 const MAX_DAYS_PER_TURN = 366
 const MAX_MEMORIES = 30
 const MAX_EVENTS = 500
+const MAX_PLOT_NOTES = 20
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
 
@@ -29,7 +30,13 @@ function findDef(defs: StatDef[], key: string | undefined): StatDef | undefined 
  * AIが提案した操作を検証し、許可されたものだけを適用する。
  * 元の state は変更しない。
  */
-export function applyOps(state: GameState, pack: WorldPack, ops: RawOp[]): ApplyResult {
+export function applyOps(
+  state: GameState,
+  pack: WorldPack,
+  ops: RawOp[],
+  /** このターンのサイコロ（判定に使う） */
+  ctx: { roll?: number } = {},
+): ApplyResult {
   const s: GameState = structuredClone(state)
   const changes: string[] = []
   const rejected: ApplyResult['rejected'] = []
@@ -130,15 +137,34 @@ export function applyOps(state: GameState, pack: WorldPack, ops: RawOp[]): Apply
       case 'advance_time': {
         const days = clamp(Math.round(op.days ?? 0), 0, MAX_DAYS_PER_TURN)
         const slots = Math.max(0, Math.round(op.slots ?? 0))
-        const n = pack.time.slots?.length ?? 0
-        let total = days
-        if (n > 0 && slots > 0) {
-          const idx = s.slotIndex + slots
-          total += Math.floor(idx / n)
-          s.slotIndex = idx % n
+        const n = Math.max(1, pack.time.slots?.length ?? 0)
+        const now = nowOrdinal(pack, s)
+        // 日数だけ進めたときは、その日の最初の時間帯にする
+        let target = slots > 0 ? now + days * n + slots : now + days * n - (days > 0 ? s.slotIndex : 0)
+        if (target <= now) break
+        // 固定イベントを飛び越えない：その直前（イベントの時刻）で止める
+        const next = nextEventOrdinal(pack, s)
+        if (next !== undefined && next < target) {
+          target = next
+          changes.push('予定の出来事の前で時間が止まった')
         }
-        if (n > 0 && days > 0 && slots === 0) s.slotIndex = 0
-        if (total > 0) s.date = addDays(s.date, total)
+        const t = fromOrdinal(pack, target)
+        s.date = t.date
+        s.slotIndex = t.slotIndex
+        break
+      }
+      case 'check': {
+        const def = findDef(pack.playerStats, op.key)
+        if (!def || !def.checkable) { reject(op, '判定に使えないステータス'); break }
+        if (!op.level || ctx.roll === undefined) { reject(op, '難度またはサイコロがない'); break }
+        const ok = checkSucceeds(def, s.player.stats[def.key], op.level as CheckLevel, ctx.roll)
+        changes.push(`判定 ${def.label}（${op.level}）：${ok ? '成功' : '失敗'}`)
+        break
+      }
+      case 'plot_note': {
+        if (!op.text) { reject(op, 'text がない'); break }
+        s.plotNotes.push(op.text.slice(0, 300))
+        if (s.plotNotes.length > MAX_PLOT_NOTES) s.plotNotes.splice(0, s.plotNotes.length - MAX_PLOT_NOTES)
         break
       }
       default:

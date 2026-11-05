@@ -1,5 +1,6 @@
-import { formatWhen } from './state'
-import type { GameState, StatDef, StoryCard, WorldPack } from './types'
+import { checkableStats, type DueEvent } from './rules'
+import { formatDate, formatWhen } from './state'
+import type { GameState, StatDef, StoryCard, WorldEvent, WorldPack } from './types'
 import { OP_NAMES } from './types'
 
 export const RECENT_TURNS = 5
@@ -43,8 +44,20 @@ ${slots}
 - add_memory：target（人物ID）、text（その人物がこのターンで覚えたこと。短く）
 - add_item / remove_item：item（プレイヤーの持ち物）
 - log_event：text（年表に残すべき出来事。重要なものだけ短く）
-- advance_time：days（進めた日数）${pack.time.slots?.length ? '、slots（進めた時間帯の数）' : ''}
-
+- advance_time：days（進めた日数）${pack.time.slots?.length ? '、slots（進めた時間帯の数）' : ''}。予定の出来事の手前で自動的に止まる
+- check：key（判定に使うステータスのキー）、level（易 / 普通 / 難 / 至難）、text（何を試みたか）
+- plot_note：text（今後の伏線や展開の予定。プレイヤーには見せない自分用のメモ）
+${checkableStats(pack).length ? `
+# 判定（最重要）
+- プレイヤーの行動の成否が能力に左右されるとき（呪文、試験、説得、隠密、運動など）は、プログラムが振ったサイコロによる「判定結果表」に必ず従ってください。
+- 表は「ステータス：難度ごとの○（成功）×（失敗）」です。行動の難しさに合う難度を選び、その結果どおりに描写し、同じ内容の check を ops に出してください。
+- 表を無視して成功・失敗を決めてはいけません。能力が関係しない行動では判定は不要です。
+` : ''}${pack.events.length ? `
+# 予定の出来事（原作・史実）
+- 「このターンに起きる出来事」が渡されたら、プレイヤーの行動と自然につなげて必ず描写してください。プレイヤーがその場にいなければ、噂や知らせとして伝わる形でもかまいません。
+- 「これから起きる出来事」は先の予定です。伏線として匂わせてもよいですが、先取りして起こしてはいけません。
+- プレイヤーの行動が予定の出来事の前提を変えたら、各出来事の「分岐の目安」に書かれたフラグを set_flag で立ててください。後の展開はプログラムがそのフラグで決めます。
+` : ''}
 # ステータス一覧
 世界：${pack.worldStats.map(statLine).join('、') || 'なし'}
 プレイヤー：${pack.playerStats.map(statLine).join('、') || 'なし'}
@@ -88,8 +101,25 @@ function compactState(pack: WorldPack, state: GameState) {
 
 const cardText = (c: StoryCard) => `【ターン${c.turn}／${c.date}${c.slot ? '・' + c.slot : ''}】\nプレイヤーの行動：${c.action}\n${c.narrative}`
 
-export function buildTurnPrompt(pack: WorldPack, state: GameState, action: string, isOpening: boolean): string {
+export interface TurnExtras {
+  due: DueEvent[]
+  upcoming: WorldEvent[]
+  /** 判定結果表（判定に使えるステータスがない世界では空） */
+  checkTable: string
+}
+
+const eventLine = (e: WorldEvent) =>
+  `- ${formatDate(e.date)}${e.slot ? '・' + e.slot : ''}「${e.title}」：${e.canon}${e.branchHint ? `\n  分岐の目安：${e.branchHint}` : ''}`
+
+export function buildTurnPrompt(
+  pack: WorldPack,
+  state: GameState,
+  action: string,
+  isOpening: boolean,
+  extras: TurnExtras = { due: [], upcoming: [], checkTable: '' },
+): string {
   const recent = state.cards.slice(-RECENT_TURNS).map(cardText).join('\n\n')
+  const due = extras.due.filter((d) => d.mode !== 'skipped')
   return `# 現在の状態
 ${JSON.stringify(compactState(pack, state), null, 1)}
 
@@ -98,7 +128,15 @@ ${state.summary || '（まだない）'}
 
 # 隠し筋書き（プレイヤーには見せない。展開の参考にする）
 ${state.hiddenPlot || '（なし）'}
-
+${state.plotNotes.length ? `\n自分のメモ：\n${state.plotNotes.map((n) => `- ${n}`).join('\n')}\n` : ''}${
+    due.length
+      ? `\n# このターンに起きる出来事（必ず描写する）\n${due
+          .map((d) => `- 「${d.event.title}」${d.mode === 'alt' ? '（原作から分岐した形）' : ''}：${d.text}${d.event.branchHint ? `\n  分岐の目安：${d.event.branchHint}` : ''}`)
+          .join('\n')}\n`
+      : ''
+  }${extras.upcoming.length ? `\n# これから起きる出来事（先取りしない）\n${extras.upcoming.map(eventLine).join('\n')}\n` : ''}${
+    extras.checkTable ? `\n# このターンの判定結果表\n${extras.checkTable}\n` : ''
+  }
 # 直近の展開
 ${recent || '（まだない）'}
 
@@ -140,6 +178,7 @@ export const TURN_JSON_SCHEMA = {
           item: { type: 'string' },
           days: { type: 'integer' },
           slots: { type: 'integer' },
+          level: { type: 'string', enum: ['易', '普通', '難', '至難'] },
         },
         required: ['op'],
       },

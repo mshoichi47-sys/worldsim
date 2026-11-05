@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { AIError } from './ai/provider'
-import { createInitialState } from './engine/state'
+import { createInitialState, normalizeState } from './engine/state'
 import { runTurn } from './engine/turn'
 import type { GameState, WorldPack } from './engine/types'
 import { loadSettings, makeProvider, saveSettings, type Settings } from './settings'
@@ -18,7 +18,7 @@ interface AppState {
   saves: SaveRecord[]
 
   refreshSaves: () => Promise<void>
-  startNew: (worldId: string) => Promise<void>
+  startNew: (worldId: string, playerName?: string) => Promise<void>
   resume: (worldId: string) => Promise<void>
   act: (action: string) => Promise<void>
   goHome: () => void
@@ -36,10 +36,11 @@ export const useApp = create<AppState>((set, get) => ({
 
   refreshSaves: async () => set({ saves: await listSaves() }),
 
-  startNew: async (worldId) => {
+  startNew: async (worldId, playerName) => {
     const pack = getWorld(worldId)
     if (!pack) return
     const game = createInitialState(pack)
+    if (playerName?.trim()) game.player.name = playerName.trim()
     await autoSave(game)
     set({ screen: 'game', pack, game, error: undefined, warning: undefined })
     await get().act('')
@@ -47,8 +48,9 @@ export const useApp = create<AppState>((set, get) => ({
 
   resume: async (worldId) => {
     const pack = getWorld(worldId)
-    const game = await loadSave(worldId)
-    if (!pack || !game) return
+    const saved = await loadSave(worldId)
+    if (!pack || !saved) return
+    const game = normalizeState(saved)
     set({ screen: 'game', pack, game, error: undefined, warning: undefined })
     // 導入場面の生成に失敗したまま終わっていた場合は、もう一度導入から
     if (game.cards.length === 0) await get().act('')

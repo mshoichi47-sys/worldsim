@@ -1,6 +1,9 @@
+import { Fragment } from 'react'
+import { upcomingEvents } from '../engine/rules'
 import type { GameState, StatDef, WorldPack } from '../engine/types'
 import { formatDate, formatWhen } from '../engine/state'
 import { exportSave } from '../storage/db'
+import { WorldMapView } from './WorldMapView'
 
 function Meter({ def, value }: { def: StatDef; value: number }) {
   const pct = ((value - def.min) / (def.max - def.min)) * 100
@@ -10,6 +13,20 @@ function Meter({ def, value }: { def: StatDef; value: number }) {
       <span className="bar"><i style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} /></span>
       <span className="num">{value}</span>
     </div>
+  )
+}
+
+/** グループ（科目・資質など）ごとに見出しを付けて並べる */
+function Meters({ defs, values }: { defs: StatDef[]; values: Record<string, number> }) {
+  return (
+    <>
+      {defs.map((d, i) => (
+        <Fragment key={d.key}>
+          {d.group && d.group !== defs[i - 1]?.group && <h3 className="group">{d.group}</h3>}
+          <Meter def={d} value={values[d.key]} />
+        </Fragment>
+      ))}
+    </>
   )
 }
 
@@ -23,14 +40,32 @@ export function StatusPanel({ pack, game }: { pack: WorldPack; game: GameState }
     URL.revokeObjectURL(url)
   }
   const people = Object.values(game.characters)
+  const schedule = upcomingEvents(pack, game, 5, true)
+  const house = typeof game.flags.house === 'string' ? game.flags.house : undefined
 
   return (
     <div className="panel">
       <h2>{formatWhen(pack, game)}</h2>
-      {pack.worldStats.map((d) => <Meter key={d.key} def={d} value={game.worldStats[d.key]} />)}
+      <Meters defs={pack.worldStats} values={game.worldStats} />
 
-      <h2>{game.player.name}{game.player.location ? `（${game.player.location}）` : ''}</h2>
-      {pack.playerStats.map((d) => <Meter key={d.key} def={d} value={game.player.stats[d.key]} />)}
+      {schedule.length > 0 && (
+        <>
+          <h2>これからの予定</h2>
+          <ul className="timeline">
+            {schedule.map((e) => (
+              <li key={e.id}><time>{formatDate(e.date)}{e.slot ? `・${e.slot}` : ''}</time>{e.title}</li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      <h2>
+        {game.player.name}
+        {house ? `（${house}）` : ''}
+      </h2>
+      {game.player.location && <p className="where-now">いる場所：{game.player.location}</p>}
+      {pack.map && <WorldMapView map={pack.map} game={game} />}
+      <Meters defs={pack.playerStats} values={game.player.stats} />
       {game.player.inventory.length > 0 && (
         <div className="tags" aria-label="持ち物">
           {game.player.inventory.map((it, i) => <span key={i}>{it}</span>)}

@@ -129,7 +129,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; line-height: 1.3; }
 .panel { max-width: 40rem; margin: 0 auto; padding: 1.25rem 1rem 2rem; }
 .panel h2 { font-size: 1.05rem; margin: 1.25rem 0 0.6rem; }
 .panel h2:first-child { margin-top: 0; }
-.meter { display: grid; grid-template-columns: 9rem 1fr 3rem; gap: 0.6rem; align-items: center; font-size: 0.9rem; margin: 0.35rem 0; }
+.meter { display: grid; grid-template-columns: minmax(8rem, 11rem) 1fr 3rem; gap: 0.6rem; align-items: center; font-size: 0.9rem; margin: 0.35rem 0; }
 .meter .bar { height: 6px; background: var(--paper-2); border-radius: 3px; overflow: hidden; }
 .meter .bar i { display: block; height: 100%; background: var(--lamp); }
 .meter .num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -162,3 +162,46 @@ h1, h2, h3 { margin: 0; font-weight: 700; line-height: 1.3; }
   .card.new { animation: settle 0.5s ease-out; }
   @keyframes settle { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 }
+
+/* ===== 見取り図・見出し ===== */
+.panel h3.group { font-size: 0.85rem; color: var(--muted); font-weight: 500; margin: 0.9rem 0 0.2rem; }
+.where-now { margin: 0 0 0.5rem; font-size: 0.9rem; }
+.map-scroll { overflow-x: auto; margin: 0.25rem 0 0.75rem; border: 1px solid var(--rule); border-radius: 8px; }
+.map { display: block; height: auto; }
+.map-band { fill: var(--paper-2); }
+.map-band.alt { fill: var(--paper); }
+.map-group { font-size: 13px; fill: var(--muted); }
+.map-dot { fill: var(--muted); }
+.map-dot.here { fill: var(--lamp); }
+.map-here-ring { fill: none; stroke: var(--lamp); stroke-width: 2; }
+.map-label { font-size: 13px; fill: var(--ink); }
+.map-label.here { font-weight: 700; }
+.map-count { font-size: 12px; fill: var(--lamp); font-weight: 700; }
+.card .event-title { font-family: var(--story); font-weight: 700; margin-bottom: 0.4rem; }
+
+/* ===== 世界ごとのテーマ：羊皮紙（ホグワーツ） ===== */
+[data-theme='parchment'] {
+  --paper: #efe5cf;
+  --paper-2: #e6d9bc;
+  --ink: #2b2118;
+  --muted: #6d5c49;
+  --rule: #d2c19f;
+  --lamp: #7d1f1f;
+  --lamp-ink: #f6eedc;
+  background: var(--paper);
+  color: var(--ink);
+}
+@media (prefers-color-scheme: dark) {
+  [data-theme='parchment'] {
+    --paper: #1d1813;
+    --paper-2: #28211a;
+    --ink: #eadfc8;
+    --muted: #b09d84;
+    --rule: #3c3226;
+    --lamp: #d4a24a;
+    --lamp-ink: #1d1813;
+  }
+}
+.name-form { margin-top: 0.9rem; display: grid; gap: 0.35rem; }
+.name-form label { font-size: 0.9rem; font-weight: 700; }
+.name-form input { flex: 1; min-width: 10rem; border: 1px solid var(--rule); border-radius: 6px; padding: 0.45rem 0.6rem; background: var(--paper-2); }

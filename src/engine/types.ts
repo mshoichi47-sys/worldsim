@@ -1,5 +1,50 @@
 import { z } from 'zod'
 
+/* ========== AIの応答 ========== */
+
+export const OP_NAMES = [
+  'adjust_stat',
+  'set_flag',
+  'move',
+  'set_status',
+  'add_memory',
+  'add_item',
+  'remove_item',
+  'log_event',
+  'advance_time',
+  'check',
+  'plot_note',
+] as const
+export type OpName = (typeof OP_NAMES)[number]
+
+/** 構造化出力に合わせ、操作はフラットな1種類のオブジェクトで受ける */
+export const RawOpSchema = z.object({
+  op: z.enum(OP_NAMES),
+  target: z.string().optional(),
+  key: z.string().optional(),
+  delta: z.number().optional(),
+  value: z.union([z.string(), z.boolean()]).optional(),
+  location: z.string().optional(),
+  status: z.enum(['active', 'absent', 'dead']).optional(),
+  text: z.string().optional(),
+  item: z.string().optional(),
+  days: z.number().optional(),
+  slots: z.number().optional(),
+  level: z.enum(['易', '普通', '難', '至難']).optional(),
+})
+export type RawOp = z.infer<typeof RawOpSchema>
+
+export const TurnResponseSchema = z.object({
+  narrative: z.string().min(1),
+  suggestions: z.array(z.string()).default([]),
+  ops: z.array(RawOpSchema).default([]),
+})
+export type TurnResponse = z.infer<typeof TurnResponseSchema>
+
+export const SummaryResponseSchema = z.object({
+  summary: z.string().min(1),
+})
+
 /* ========== 世界パック（データ） ========== */
 
 export const StatDefSchema = z.object({
@@ -11,6 +56,8 @@ export const StatDefSchema = z.object({
   /** 1回の操作で動かせる最大幅。省略時は範囲の20% */
   maxDelta: z.number().optional(),
   group: z.string().optional(),
+  /** 判定（サイコロ）に使えるステータスか */
+  checkable: z.boolean().default(false),
 })
 export type StatDef = z.infer<typeof StatDefSchema>
 
@@ -23,6 +70,59 @@ export const CharacterDefSchema = z.object({
   stats: z.record(z.string(), z.number()).default({}),
 })
 export type CharacterDef = z.infer<typeof CharacterDefSchema>
+
+/** 状態に対する条件。書いた項目はすべて満たす必要がある（AND） */
+export const ConditionSchema = z.object({
+  /** このフラグがこの値であること */
+  flags: z.record(z.string(), z.union([z.string(), z.boolean()])).optional(),
+  /** このフラグがこの値でないこと（未設定も「でない」に含む） */
+  notFlags: z.record(z.string(), z.union([z.string(), z.boolean()])).optional(),
+  /** 数値の範囲 */
+  stats: z
+    .array(
+      z.object({
+        target: z.string(),
+        key: z.string(),
+        min: z.number().optional(),
+        max: z.number().optional(),
+      }),
+    )
+    .optional(),
+  /** この人物が死亡していないこと */
+  alive: z.array(z.string()).optional(),
+})
+export type Condition = z.infer<typeof ConditionSchema>
+
+/** 日付つきの固定イベント（原作・史実の出来事） */
+export const WorldEventSchema = z.object({
+  id: z.string(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  /** 時間帯（slotsのどれか）。省略時はその日の最初 */
+  slot: z.string().optional(),
+  title: z.string(),
+  /** 原作どおりなら何が起きるか（AIに渡す） */
+  canon: z.string(),
+  /** プレイヤーの介入でどう変わりうるか、どのフラグを立てるか（AIに渡す） */
+  branchHint: z.string().optional(),
+  /** 原作どおり起きる条件。満たさなければ alt を使う（alt がなければ起きない） */
+  requires: ConditionSchema.optional(),
+  /** 条件を満たさなかったときの展開 */
+  alt: z.string().optional(),
+  /** 起きたときに自動で適用する操作 */
+  effects: z.array(RawOpSchema).default([]),
+  /** 予定としてプレイヤーに見せるか（ネタばれになるものは false） */
+  public: z.boolean().default(false),
+})
+export type WorldEvent = z.infer<typeof WorldEventSchema>
+
+export const MapSchema = z.object({
+  width: z.number(),
+  height: z.number(),
+  places: z.array(z.object({ name: z.string(), x: z.number(), y: z.number(), group: z.string().optional() })),
+  /** 場所どうしのつながり（線） */
+  links: z.array(z.tuple([z.string(), z.string()])).default([]),
+})
+export type WorldMap = z.infer<typeof MapSchema>
 
 export const WorldPackSchema = z.object({
   id: z.string(),
@@ -53,6 +153,12 @@ export const WorldPackSchema = z.object({
     inventory: z.array(z.string()).default([]),
   }),
   characters: z.array(CharacterDefSchema).default([]),
+  events: z.array(WorldEventSchema).default([]),
+  /** 開始時の隠し筋書き（プレイヤーに見せない真相など） */
+  hiddenPlot: z.string().default(''),
+  /** 開始前にプレイヤーの名前を聞くか */
+  askName: z.boolean().default(false),
+  map: MapSchema.optional(),
   /** ゲーム開始時の指示（導入場面の描写方針） */
   opening: z.string().default('導入場面を描写してください。'),
   theme: z.enum(['default', 'parchment', 'newspaper']).default('default'),
@@ -81,6 +187,8 @@ export interface StoryCard {
   narrative: string
   /** 適用された変化（人が読める形） */
   changes: string[]
+  /** このターンに起きた固定イベントの題名 */
+  events?: string[]
 }
 
 export interface GameState {
@@ -98,6 +206,8 @@ export interface GameState {
   }
   characters: Record<string, CharacterState>
   flags: Record<string, string | boolean>
+  /** 固定イベントの処理済み記録 */
+  firedEvents: Record<string, 'canon' | 'alt' | 'skipped'>
   /** 出来事の年表 */
   events: { turn: number; date: string; text: string }[]
   /** 10ターンごとに更新する要約 */
@@ -105,49 +215,10 @@ export interface GameState {
   summarizedThroughTurn: number
   /** プレイヤーに見せない伏線・今後の展開 */
   hiddenPlot: string
+  /** AIが残す伏線メモ（プレイヤーに見せない） */
+  plotNotes: string[]
   suggestions: string[]
   cards: StoryCard[]
   updatedAt: number
 }
 
-/* ========== AIの応答 ========== */
-
-export const OP_NAMES = [
-  'adjust_stat',
-  'set_flag',
-  'move',
-  'set_status',
-  'add_memory',
-  'add_item',
-  'remove_item',
-  'log_event',
-  'advance_time',
-] as const
-export type OpName = (typeof OP_NAMES)[number]
-
-/** 構造化出力に合わせ、操作はフラットな1種類のオブジェクトで受ける */
-export const RawOpSchema = z.object({
-  op: z.enum(OP_NAMES),
-  target: z.string().optional(),
-  key: z.string().optional(),
-  delta: z.number().optional(),
-  value: z.union([z.string(), z.boolean()]).optional(),
-  location: z.string().optional(),
-  status: z.enum(['active', 'absent', 'dead']).optional(),
-  text: z.string().optional(),
-  item: z.string().optional(),
-  days: z.number().optional(),
-  slots: z.number().optional(),
-})
-export type RawOp = z.infer<typeof RawOpSchema>
-
-export const TurnResponseSchema = z.object({
-  narrative: z.string().min(1),
-  suggestions: z.array(z.string()).default([]),
-  ops: z.array(RawOpSchema).default([]),
-})
-export type TurnResponse = z.infer<typeof TurnResponseSchema>
-
-export const SummaryResponseSchema = z.object({
-  summary: z.string().min(1),
-})

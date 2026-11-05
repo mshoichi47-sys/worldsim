@@ -32,7 +32,7 @@ export function Game() {
   const retryOpening = game.cards.length === 0
 
   return (
-    <div className="game">
+    <div className="game" data-theme={pack.theme}>
       <header className="topbar">
         <button className="back" onClick={goHome} aria-label="世界の選択に戻る">←</button>
         <span className="title">{pack.title}</span>
@@ -48,6 +48,7 @@ export function Game() {
                 <article className={`card${isNew(c.turn) ? ' new' : ''}`} key={c.turn}>
                   <div className="stamp">{formatDate(c.date)}{c.slot ? `　${c.slot}` : ''}</div>
                   <div>
+                    {c.events?.map((t) => <div className="event-title" key={t}>{t}</div>)}
                     {c.turn > 1 && <div className="action">行動：<b>{c.action}</b></div>}
                     <div className="narrative">{c.narrative}</div>
                     {c.changes.length > 0 && (

@@ -25,14 +25,21 @@ export function createInitialState(pack: WorldPack): GameState {
     },
     characters,
     flags: {},
+    firedEvents: {},
     events: [],
     summary: '',
     summarizedThroughTurn: 0,
-    hiddenPlot: '',
+    hiddenPlot: pack.hiddenPlot,
+    plotNotes: [],
     suggestions: [],
     cards: [],
     updatedAt: Date.now(),
   }
+}
+
+/** 古いセーブに後から足した項目を補う */
+export function normalizeState(s: GameState): GameState {
+  return { ...s, firedEvents: s.firedEvents ?? {}, plotNotes: s.plotNotes ?? [] }
 }
 
 /** 'YYYY-MM-DD' に日数を足す（UTCで計算して日付のずれを防ぐ） */

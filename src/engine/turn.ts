@@ -8,7 +8,8 @@ import {
   buildSystemPrompt,
   buildTurnPrompt,
 } from './prompt'
-import { slotLabel } from './state'
+import { checkTable, dueEvents, rollD100, upcomingEvents } from './rules'
+import { normalizeState, slotLabel } from './state'
 import { RawOpSchema, SummaryResponseSchema, type GameState, type RawOp, type WorldPack } from './types'
 
 export interface TurnResult {
@@ -44,18 +45,28 @@ function readTurnResponse(text: string) {
 
 export async function runTurn(
   pack: WorldPack,
-  state: GameState,
+  stateIn: GameState,
   action: string,
   ai: AIProvider,
+  /** テストでサイコロを固定するため */
+  roll: number = rollD100(),
 ): Promise<TurnResult> {
+  const state = normalizeState(stateIn)
   const isOpening = state.turn === 0 && state.cards.length === 0
   const shownAction = isOpening ? '（ゲーム開始）' : action.trim()
   if (!isOpening && !shownAction) throw new AIError('other', '行動を入力してください。')
 
+  // 時刻に達した固定イベント（条件はコードが判定する）
+  const due = dueEvents(pack, state)
+
   const request = {
     kind: 'turn' as const,
     system: buildSystemPrompt(pack),
-    prompt: buildTurnPrompt(pack, state, shownAction, isOpening),
+    prompt: buildTurnPrompt(pack, state, shownAction, isOpening, {
+      due,
+      upcoming: upcomingEvents(pack, state, 3),
+      checkTable: checkTable(pack, state, roll),
+    }),
     schema: TURN_JSON_SCHEMA,
     meta: { pack, state, action: shownAction },
   }
@@ -74,8 +85,22 @@ export async function runTurn(
   if (!parsed) throw new AIError('bad_output', `AIの応答を読み取れませんでした（${lastError}）。もう一度送ってください。`)
 
   const whenBefore = { date: state.date, slot: slotLabel(pack, state) }
-  const applied = applyOps(state, pack, parsed.ops)
-  const next = applied.state
+  const applied = applyOps(state, pack, parsed.ops, { roll })
+  let next = applied.state
+  // 固定イベントを処理済みにし、原作どおりのときは決まった効果を適用する
+  const happened: string[] = []
+  for (const d of due) {
+    if (d.mode === 'canon' && d.event.effects.length) {
+      const eff = applyOps(next, pack, d.event.effects, { roll })
+      next = eff.state
+      applied.changes.push(...eff.changes)
+    }
+    next.firedEvents[d.event.id] = d.mode
+    if (d.mode !== 'skipped') {
+      happened.push(d.event.title)
+      next.events.push({ turn: state.turn + 1, date: d.event.date, text: d.event.title + (d.mode === 'alt' ? '（原作から分岐）' : '') })
+    }
+  }
   next.turn = state.turn + 1
   next.suggestions = parsed.suggestions
   next.cards.push({
@@ -85,6 +110,7 @@ export async function runTurn(
     action: shownAction,
     narrative: parsed.narrative,
     changes: applied.changes,
+    events: happened.length ? happened : undefined,
   })
   next.updatedAt = Date.now()
 
