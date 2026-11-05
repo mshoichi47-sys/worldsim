@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import { upcomingEvents } from '../engine/rules'
+import { activeInfluences, upcomingEvents } from '../engine/rules'
 import type { GameState, StatDef, WorldPack } from '../engine/types'
 import { formatDate, formatWhen } from '../engine/state'
 import { exportSave } from '../storage/db'
@@ -42,6 +42,7 @@ export function StatusPanel({ pack, game }: { pack: WorldPack; game: GameState }
   const people = Object.values(game.characters)
   const schedule = upcomingEvents(pack, game, 5, true)
   const house = typeof game.flags.house === 'string' ? game.flags.house : undefined
+  const influences = activeInfluences(pack, game)
 
   return (
     <div className="panel">
@@ -70,6 +71,15 @@ export function StatusPanel({ pack, game }: { pack: WorldPack; game: GameState }
         <div className="tags" aria-label="持ち物">
           {game.player.inventory.map((it, i) => <span key={i}>{it}</span>)}
         </div>
+      )}
+
+      {influences.length > 0 && (
+        <>
+          <h2>周りへの影響</h2>
+          <ul className="timeline">
+            {influences.map((t, i) => <li key={i}>{t}</li>)}
+          </ul>
+        </>
       )}
 
       {people.length > 0 && <h2>人物</h2>}

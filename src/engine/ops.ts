@@ -34,8 +34,8 @@ export function applyOps(
   state: GameState,
   pack: WorldPack,
   ops: RawOp[],
-  /** このターンのサイコロ（判定に使う） */
-  ctx: { roll?: number } = {},
+  /** roll：このターンのサイコロ（判定に使う）／ trusted：世界パックに書かれた効果なので1回の上限をかけない */
+  ctx: { roll?: number; trusted?: boolean } = {},
 ): ApplyResult {
   const s: GameState = structuredClone(state)
   const changes: string[] = []
@@ -60,13 +60,13 @@ export function applyOps(
           const def = findDef(pack.worldStats, op.key)
           if (!def) { reject(op, '未定義の世界ステータス'); break }
           const before = s.worldStats[def.key]
-          s.worldStats[def.key] = clamp(before + limitDelta(def, op.delta), def.min, def.max)
+          s.worldStats[def.key] = clamp(before + (ctx.trusted ? Math.round(op.delta) : limitDelta(def, op.delta)), def.min, def.max)
           pushChange(changes, def.label, before, s.worldStats[def.key])
         } else if (target === 'player') {
           const def = findDef(pack.playerStats, op.key)
           if (!def) { reject(op, '未定義のプレイヤーステータス'); break }
           const before = s.player.stats[def.key]
-          s.player.stats[def.key] = clamp(before + limitDelta(def, op.delta), def.min, def.max)
+          s.player.stats[def.key] = clamp(before + (ctx.trusted ? Math.round(op.delta) : limitDelta(def, op.delta)), def.min, def.max)
           pushChange(changes, def.label, before, s.player.stats[def.key])
         } else {
           const c = charOf(target)
@@ -75,7 +75,7 @@ export function applyOps(
           if (!def) { reject(op, '未定義の人物ステータス'); break }
           if (c.status === 'dead') { reject(op, '死亡した人物'); break }
           const before = c.stats[def.key]
-          c.stats[def.key] = clamp(before + limitDelta(def, op.delta), def.min, def.max)
+          c.stats[def.key] = clamp(before + (ctx.trusted ? Math.round(op.delta) : limitDelta(def, op.delta)), def.min, def.max)
           pushChange(changes, `${c.name}の${def.label}`, before, c.stats[def.key])
         }
         break

@@ -8,7 +8,7 @@ import {
   buildSystemPrompt,
   buildTurnPrompt,
 } from './prompt'
-import { checkTable, dueEvents, rollD100, upcomingEvents } from './rules'
+import { activeInfluences, checkTable, dueEvents, dueTriggers, rollD100, upcomingEvents } from './rules'
 import { normalizeState, slotLabel } from './state'
 import { RawOpSchema, SummaryResponseSchema, type GameState, type RawOp, type WorldPack } from './types'
 
@@ -56,16 +56,18 @@ export async function runTurn(
   const shownAction = isOpening ? '（ゲーム開始）' : action.trim()
   if (!isOpening && !shownAction) throw new AIError('other', '行動を入力してください。')
 
-  // 時刻に達した固定イベント（条件はコードが判定する）
-  const due = dueEvents(pack, state)
+  // 時刻に達した固定イベント（分岐かどうかはコードが判定し、分岐の中身はAIが決める）と、
+  // ステータスが条件を満たしたきっかけの出来事
+  const due = [...dueEvents(pack, state), ...dueTriggers(pack, state)]
 
   const request = {
     kind: 'turn' as const,
     system: buildSystemPrompt(pack),
     prompt: buildTurnPrompt(pack, state, shownAction, isOpening, {
       due,
-      upcoming: upcomingEvents(pack, state, 3),
+      upcoming: upcomingEvents(pack, state, 6),
       checkTable: checkTable(pack, state, roll),
+      influences: activeInfluences(pack, state),
     }),
     schema: TURN_JSON_SCHEMA,
     meta: { pack, state, action: shownAction },
@@ -90,16 +92,15 @@ export async function runTurn(
   // 固定イベントを処理済みにし、原作どおりのときは決まった効果を適用する
   const happened: string[] = []
   for (const d of due) {
-    if (d.mode === 'canon' && d.event.effects.length) {
-      const eff = applyOps(next, pack, d.event.effects, { roll })
+    if (d.mode === 'canon' && d.effects.length) {
+      const eff = applyOps(next, pack, d.effects, { roll, trusted: true })
       next = eff.state
       applied.changes.push(...eff.changes)
     }
-    next.firedEvents[d.event.id] = d.mode
-    if (d.mode !== 'skipped') {
-      happened.push(d.event.title)
-      next.events.push({ turn: state.turn + 1, date: d.event.date, text: d.event.title + (d.mode === 'alt' ? '（原作から分岐）' : '') })
-    }
+    next.firedEvents[d.id] = d.mode
+    const title = d.title + (d.mode === 'diverged' ? '（原作から分岐）' : '')
+    happened.push(title)
+    next.events.push({ turn: state.turn + 1, date: d.date ?? state.date, text: title })
   }
   next.turn = state.turn + 1
   next.suggestions = parsed.suggestions

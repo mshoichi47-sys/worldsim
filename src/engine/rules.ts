@@ -56,26 +56,69 @@ export function meets(s: GameState, c: Condition | undefined): boolean {
   return true
 }
 
-/* ========== 固定イベント ========== */
+/* ========== 固定イベント・きっかけの出来事 ========== */
+
+/** AIがいつでも立てられる「この出来事の前提が変わった」印のフラグ名 */
+export const altFlag = (eventId: string) => `alt:${eventId}`
 
 export interface DueEvent {
-  event: WorldEvent
-  mode: 'canon' | 'alt' | 'skipped'
-  /** AIに渡す、このターンに起きること */
+  id: string
+  title: string
+  /** 原作どおりなら起きること／きっかけの出来事の内容 */
   text: string
+  branchHint?: string
+  /** canon：原作どおり ／ diverged：前提が変わっていて、中身はAIが決める */
+  mode: 'canon' | 'diverged'
+  /** 分岐の理由（AIが残したメモ、または条件が崩れたこと） */
+  reason?: string
+  /** 分岐したときの参考例 */
+  example?: string
+  /** 原作どおりのときにコードが適用する操作 */
+  effects: WorldEvent['effects']
+  /** 年表に載せる日付 */
+  date?: string
+  kind: 'event' | 'trigger'
 }
 
-/** 時刻に達した、まだ処理していない固定イベント（古い順） */
+/** 時刻に達した、まだ処理していない固定イベント（古い順）。分岐かどうかはコードが判定する */
 export function dueEvents(pack: WorldPack, s: GameState): DueEvent[] {
   const now = nowOrdinal(pack, s)
   return pack.events
     .filter((ev) => !s.firedEvents[ev.id] && eventOrdinal(pack, ev) <= now)
     .sort((a, b) => eventOrdinal(pack, a) - eventOrdinal(pack, b))
-    .map((event) => {
-      if (meets(s, event.requires)) return { event, mode: 'canon' as const, text: event.canon }
-      if (event.alt) return { event, mode: 'alt' as const, text: event.alt }
-      return { event, mode: 'skipped' as const, text: '' }
+    .map((ev): DueEvent => {
+      const note = s.flags[altFlag(ev.id)]
+      const broken = !meets(s, ev.requires)
+      const diverged = broken || (note !== undefined && note !== false)
+      return {
+        id: ev.id,
+        title: ev.title,
+        text: ev.canon,
+        branchHint: ev.branchHint,
+        mode: diverged ? 'diverged' : 'canon',
+        reason: diverged
+          ? [typeof note === 'string' ? note : '', broken ? 'これまでの展開で、原作どおりに起きる前提が崩れている' : '']
+              .filter(Boolean)
+              .join('／')
+          : undefined,
+        example: diverged ? ev.alt : undefined,
+        effects: ev.effects,
+        date: ev.date,
+        kind: 'event',
+      }
     })
+}
+
+/** 条件を満たした、まだ起きていない「きっかけの出来事」 */
+export function dueTriggers(pack: WorldPack, s: GameState): DueEvent[] {
+  return pack.triggers
+    .filter((t) => !s.firedEvents[`trigger:${t.id}`] && meets(s, t.when))
+    .map((t) => ({ id: `trigger:${t.id}`, title: t.title, text: t.text, mode: 'canon', effects: t.effects, kind: 'trigger' }))
+}
+
+/** 今効いている影響の説明 */
+export function activeInfluences(pack: WorldPack, s: GameState): string[] {
+  return pack.influences.filter((i) => meets(s, i.when)).map((i) => i.text)
 }
 
 /** まだ起きていない固定イベント（近い順） */

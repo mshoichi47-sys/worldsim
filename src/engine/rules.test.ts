@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AIProvider } from '../ai/provider'
 import hogwartsPack from '../worlds/hogwarts/pack.json'
 import { applyOps } from './ops'
-import { checkChance, dueEvents, meets, nowOrdinal, ordinal } from './rules'
+import { activeInfluences, checkChance, dueEvents, dueTriggers, meets, nowOrdinal, ordinal } from './rules'
 import { createInitialState } from './state'
 import { runTurn } from './turn'
 import { WorldPackSchema } from './types'
@@ -84,8 +84,22 @@ describe('固定イベント', () => {
     expect(dueEvents(pack, s)[0].mode).toBe('canon')
     s.flags.hermione_not_in_bathroom = true
     const d = dueEvents(pack, s)[0]
-    expect(d.mode).toBe('alt')
-    expect(d.text).toContain('友情はこの夜には生まれない')
+    expect(d.mode).toBe('diverged')
+    expect(d.reason).toContain('前提が崩れている')
+    expect(d.example).toContain('友情はこの夜には生まれない') // 参考の一例として渡す
+  })
+
+  it('条件のない出来事も、AIの記録したメモで分岐する', async () => {
+    const s = createInitialState(pack)
+    s.firedEvents.kings_cross = 'canon'
+    s.slotIndex = 4 // 9/1 夜＝組分け
+    s.flags['alt:sorting'] = 'プレイヤーが帽子より先に名前を呼ばれた'
+    const ai = scripted()
+    const r = await runTurn(pack, s, '様子を見る', ai, 50)
+    expect(ai.prompts[0]).toContain('「組分けの儀式と新学期の宴」（原作から分岐）')
+    expect(ai.prompts[0]).toContain('変化：プレイヤーが帽子より先に名前を呼ばれた')
+    expect(r.state.firedEvents.sorting).toBe('diverged')
+    expect(r.state.cards[0].events).toEqual(['組分けの儀式と新学期の宴（原作から分岐）'])
   })
 
   it('条件の判定', () => {
@@ -101,5 +115,40 @@ describe('固定イベント', () => {
     const s = createInitialState(pack)
     expect(nowOrdinal(pack, s)).toBe(ordinal(pack, '1991-09-01', 0))
     expect(ordinal(pack, '1991-09-02', 0) - ordinal(pack, '1991-09-01', 0)).toBe(6)
+  })
+})
+
+describe('ステータスの影響', () => {
+  it('条件を満たす間だけ影響がAIに渡る', async () => {
+    const s = createInitialState(pack)
+    expect(activeInfluences(pack, s)).toHaveLength(0)
+    s.player.stats.rule_breaks = 4
+    s.flags.house = 'スリザリン'
+    const inf = activeInfluences(pack, s)
+    expect(inf.some((t) => t.includes('フィルチ'))).toBe(true)
+    expect(inf.some((t) => t.includes('スリザリン生'))).toBe(true)
+    const ai = scripted()
+    await runTurn(pack, s, '', ai, 50)
+    expect(ai.prompts[0]).toContain('今効いている影響')
+  })
+
+  it('きっかけの出来事は一度だけ起き、効果がほかの人物に波及する', async () => {
+    let s = createInitialState(pack)
+    s.firedEvents.kings_cross = 'canon'
+    s.player.stats.rule_breaks = 3
+    expect(dueTriggers(pack, s).map((t) => t.id)).toEqual(['trigger:filch_watch'])
+    s = (await runTurn(pack, s, '廊下を歩く', scripted(), 50)).state
+    expect(s.characters.filch.stats.suspicion).toBe(40)
+    expect(s.cards.at(-1)?.events).toEqual(['フィルチに目をつけられる'])
+    expect(dueTriggers(pack, s)).toHaveLength(0)
+  })
+
+  it('人物との関係が先の原作の出来事を分岐させる', () => {
+    const s = createInitialState(pack)
+    s.characters.hermione.stats.affinity = 45
+    s.characters.hermione.stats.trust = 45
+    const t = dueTriggers(pack, s).find((x) => x.id === 'trigger:hermione_opens')!
+    const r = applyOps(s, pack, t.effects)
+    expect(r.state.flags['alt:halloween_charms']).toContain('友だちがいる')
   })
 })

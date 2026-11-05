@@ -1,4 +1,4 @@
-import { checkableStats, type DueEvent } from './rules'
+import { altFlag, checkableStats, type DueEvent } from './rules'
 import { formatDate, formatWhen } from './state'
 import type { GameState, StatDef, StoryCard, WorldEvent, WorldPack } from './types'
 import { OP_NAMES } from './types'
@@ -53,10 +53,16 @@ ${checkableStats(pack).length ? `
 - 表は「ステータス：難度ごとの○（成功）×（失敗）」です。行動の難しさに合う難度を選び、その結果どおりに描写し、同じ内容の check を ops に出してください。
 - 表を無視して成功・失敗を決めてはいけません。能力が関係しない行動では判定は不要です。
 ` : ''}${pack.events.length ? `
-# 予定の出来事（原作・史実）
-- 「このターンに起きる出来事」が渡されたら、プレイヤーの行動と自然につなげて必ず描写してください。プレイヤーがその場にいなければ、噂や知らせとして伝わる形でもかまいません。
+# 予定の出来事（原作・史実）と分岐
+- 「このターンに起きる出来事」が渡されたら、プレイヤーの行動と自然につなげて描写してください。プレイヤーがその場にいなければ、噂や知らせとして伝わる形でもかまいません。
+- 「原作から分岐」と書かれた出来事は、原作どおりには起きません。今の状態とこれまでの展開から、別の形で起きるのか、起きないのか、代わりに何が起きるのかをあなたが考えて描写してください。参考の一例があっても縛られる必要はありません。原作に引き戻さないでください。
 - 「これから起きる出来事」は先の予定です。伏線として匂わせてもよいですが、先取りして起こしてはいけません。
-- プレイヤーの行動が予定の出来事の前提を変えたら、各出来事の「分岐の目安」に書かれたフラグを set_flag で立ててください。後の展開はプログラムがそのフラグで決めます。
+- どの出来事も分岐しえます。プレイヤーの行動で先の出来事の前提が変わったら、set_flag で key="${altFlag('出来事ID')}"、value="何がどう変わったかの短いメモ" を出してください。その出来事の時が来たら、プログラムがそのメモを添えて「原作から分岐」として渡します。「分岐の目安」に書かれたフラグがあれば、それも立ててください。
+- 分岐の結果は、その場にいない人物の関係や数値、寮点、城の空気にも波及させてください。
+` : ''}${pack.influences.length || pack.triggers.length ? `
+# ステータスの影響
+- 「今効いている影響」は、プレイヤーや世界の数値が周りに与えている影響です。人物の態度、噂、先生や学校の対応に必ず反映してください。
+- 数値の変化は、関係する人物の数値（好感度・疑念など）や世界の数値にも、筋が通る範囲で波及させてください。
 ` : ''}
 # ステータス一覧
 世界：${pack.worldStats.map(statLine).join('、') || 'なし'}
@@ -106,10 +112,23 @@ export interface TurnExtras {
   upcoming: WorldEvent[]
   /** 判定結果表（判定に使えるステータスがない世界では空） */
   checkTable: string
+  /** 今効いている影響 */
+  influences?: string[]
 }
 
-const eventLine = (e: WorldEvent) =>
-  `- ${formatDate(e.date)}${e.slot ? '・' + e.slot : ''}「${e.title}」：${e.canon}${e.branchHint ? `\n  分岐の目安：${e.branchHint}` : ''}`
+const eventLine = (state: GameState) => (e: WorldEvent) => {
+  const note = state.flags[altFlag(e.id)]
+  return `- [${e.id}] ${formatDate(e.date)}${e.slot ? '・' + e.slot : ''}「${e.title}」：${e.canon}${
+    e.branchHint ? `\n  分岐の目安：${e.branchHint}` : ''
+  }${typeof note === 'string' ? `\n  すでに記録された変化：${note}` : ''}`
+}
+
+const dueLine = (d: DueEvent) =>
+  d.mode === 'canon'
+    ? `- 「${d.title}」：${d.text}${d.branchHint ? `\n  分岐の目安：${d.branchHint}` : ''}`
+    : `- 「${d.title}」（原作から分岐）：原作ではこうなる予定だった→${d.text}\n  変化：${d.reason}${
+        d.example ? `\n  参考の一例：${d.example}` : ''
+      }\n  今の状況からあなたが展開を決める。`
 
 export function buildTurnPrompt(
   pack: WorldPack,
@@ -119,7 +138,7 @@ export function buildTurnPrompt(
   extras: TurnExtras = { due: [], upcoming: [], checkTable: '' },
 ): string {
   const recent = state.cards.slice(-RECENT_TURNS).map(cardText).join('\n\n')
-  const due = extras.due.filter((d) => d.mode !== 'skipped')
+  const due = extras.due
   return `# 現在の状態
 ${JSON.stringify(compactState(pack, state), null, 1)}
 
@@ -131,10 +150,12 @@ ${state.hiddenPlot || '（なし）'}
 ${state.plotNotes.length ? `\n自分のメモ：\n${state.plotNotes.map((n) => `- ${n}`).join('\n')}\n` : ''}${
     due.length
       ? `\n# このターンに起きる出来事（必ず描写する）\n${due
-          .map((d) => `- 「${d.event.title}」${d.mode === 'alt' ? '（原作から分岐した形）' : ''}：${d.text}${d.event.branchHint ? `\n  分岐の目安：${d.event.branchHint}` : ''}`)
+          .map(dueLine)
           .join('\n')}\n`
       : ''
-  }${extras.upcoming.length ? `\n# これから起きる出来事（先取りしない）\n${extras.upcoming.map(eventLine).join('\n')}\n` : ''}${
+  }${extras.upcoming.length ? `\n# これから起きる出来事（先取りしない）\n${extras.upcoming.map(eventLine(state)).join('\n')}\n` : ''}${
+    extras.influences?.length ? `\n# 今効いている影響\n${extras.influences.map((t) => `- ${t}`).join('\n')}\n` : ''
+  }${
     extras.checkTable ? `\n# このターンの判定結果表\n${extras.checkTable}\n` : ''
   }
 # 直近の展開

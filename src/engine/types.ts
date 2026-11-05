@@ -104,9 +104,9 @@ export const WorldEventSchema = z.object({
   canon: z.string(),
   /** プレイヤーの介入でどう変わりうるか、どのフラグを立てるか（AIに渡す） */
   branchHint: z.string().optional(),
-  /** 原作どおり起きる条件。満たさなければ alt を使う（alt がなければ起きない） */
+  /** 原作どおり起きる条件。満たさなければ「分岐」として扱い、中身はAIが決める */
   requires: ConditionSchema.optional(),
-  /** 条件を満たさなかったときの展開 */
+  /** 分岐したときの展開の参考例（AIはこれに縛られない） */
   alt: z.string().optional(),
   /** 起きたときに自動で適用する操作 */
   effects: z.array(RawOpSchema).default([]),
@@ -114,6 +114,24 @@ export const WorldEventSchema = z.object({
   public: z.boolean().default(false),
 })
 export type WorldEvent = z.infer<typeof WorldEventSchema>
+
+/** 条件を満たしている間ずっと効く影響（AIに渡す） */
+export const InfluenceSchema = z.object({
+  id: z.string(),
+  when: ConditionSchema,
+  text: z.string(),
+})
+export type Influence = z.infer<typeof InfluenceSchema>
+
+/** 条件を満たしたときに一度だけ起きる出来事（日付なし） */
+export const TriggerSchema = z.object({
+  id: z.string(),
+  when: ConditionSchema,
+  title: z.string(),
+  text: z.string(),
+  effects: z.array(RawOpSchema).default([]),
+})
+export type Trigger = z.infer<typeof TriggerSchema>
 
 export const MapSchema = z.object({
   width: z.number(),
@@ -154,6 +172,8 @@ export const WorldPackSchema = z.object({
   }),
   characters: z.array(CharacterDefSchema).default([]),
   events: z.array(WorldEventSchema).default([]),
+  influences: z.array(InfluenceSchema).default([]),
+  triggers: z.array(TriggerSchema).default([]),
   /** 開始時の隠し筋書き（プレイヤーに見せない真相など） */
   hiddenPlot: z.string().default(''),
   /** 開始前にプレイヤーの名前を聞くか */
@@ -207,7 +227,7 @@ export interface GameState {
   characters: Record<string, CharacterState>
   flags: Record<string, string | boolean>
   /** 固定イベントの処理済み記録 */
-  firedEvents: Record<string, 'canon' | 'alt' | 'skipped'>
+  firedEvents: Record<string, 'canon' | 'diverged' | 'alt' | 'skipped'>
   /** 出来事の年表 */
   events: { turn: number; date: string; text: string }[]
   /** 10ターンごとに更新する要約 */
