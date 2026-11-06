@@ -1,6 +1,6 @@
 import { altFlag, checkLine, checkableStats, type DueEvent } from './rules'
 import { formatDate, formatWhen } from './state'
-import type { CheckResult, GameState, StatDef, StoryCard, WorldEvent, WorldPack } from './types'
+import type { CheckResult, GameState, Pace, StatDef, StoryCard, WorldEvent, WorldPack } from './types'
 import { LEVELS, OP_NAMES } from './types'
 
 export const RECENT_TURNS = 5
@@ -29,7 +29,17 @@ ${pack.style || '（特になし）'}
 # 時間
 1ターンの長さ：${pack.time.turnHint}
 ${slots}
-
+${
+  pack.time.digestDays
+    ? `
+# 時間の進み方（日々と場面）
+- 「日々」のターン：${pack.time.digestDays[0]}〜${pack.time.digestDays[1]}日をまとめて進めます。その間の暮らしを短くまとめ、印象に残る場面を1つだけ切り取って描いてください。advance_time では days で進めた日数を出します（プログラムが範囲に収め、予定の出来事の前で止めます）。
+- 「場面」のターン：予定の出来事、夜の冒険、対決、大事な会話など、ここぞという場面をじっくり描きます。場面の中では時計を止めます（進めても1時間帯まで）。場面は2〜4ターンで決着させてください。
+- next_pace で、次のターンを「日々」にするか「場面」の続きにするかを返します。場面が決着したら「日々」に戻します。何でもない場面を引き延ばさないでください。
+- 「日々」のターンの行動候補は、「この数日をどう過ごすか」の方針にします（例：図書館にこもる、練習を見に行く、友だちと過ごす）。「場面」の行動候補は、その場での具体的な行動にします。
+`
+    : ''
+}
 # 状態について（最重要）
 - 数値・所在・生死などの状態は、ゲームのプログラムが管理しています。あなたは状態を直接書き換えず、「ops」で変更を提案するだけです。
 - 提案はプログラムが検証し、範囲外や存在しない対象は捨てられます。1回の変化は小さめにしてください。
@@ -74,7 +84,18 @@ ${checkableStats(pack).length ? `
 - 人前で目立つこと（活躍、失敗、規則違反、手柄）をしたら、評判を必ず動かしてください（良いことで+、悪いことで−）。
 - 先生は、プレイヤーの寮だけでなく、授業や廊下でほかの寮の生徒にも加点・減点します。場面にいる他寮の生徒の点数も動かしてください。
 ` : ''}
-# ステータス一覧
+${
+  pack.paths.length
+    ? `# 過ごし方（道）
+プレイヤーは本筋（原作の大きな物語）に乗っても乗らなくてもかまいません。どの道に打ち込むかで、プレイヤーの1年が変わります。
+${pack.paths.map((p) => `- ${p.id}：${p.title}（進み具合は ${p.stat}）。${p.summary}`).join('\n')}
+- 行動候補は、それぞれ違う道から出してください（3つのうち1つは本筋以外）。打ち込む道の id を path に入れます。どの道にも当たらないときは path="" にします。
+- プレイヤーが本筋に関わっていないとき、原作の出来事はハリーたちの身に起きます。プレイヤーには噂や知らせ、周りの変化として届けてください。本筋に引き込もうとせず、プレイヤーが選んだ道の物語を続けてください。
+- 道の進み具合はプログラムが上げます（候補を選んだとき）。自由入力でその道に打ち込んだときだけ、adjust_stat で小さく上げてください。
+
+`
+    : ''
+}# ステータス一覧
 世界：${pack.worldStats.map(statLine).join('、') || 'なし'}
 プレイヤー：${pack.playerStats.map(statLine).join('、') || 'なし'}
 人物ごと：${pack.characterStats.map(statLine).join('、') || 'なし'}
@@ -86,7 +107,9 @@ ${pack.characters.map((c) => `- ${c.id}：${c.name}。${c.description}`).join('\
 JSONで返します。
 - narrative：このターンの物語本文（400〜800字程度。地の文と会話）
 - check：このターンの判定 { key, level }（判定しないときは key=""）
-- suggestions：次の行動の候補3つ [{ text（20字程度）, key（判定に使うステータス。なければ ""）, level }]
+- suggestions：次の行動の候補3つ [{ text（20字程度）, key（判定に使うステータス。なければ ""）, level, path（打ち込む道の id。なければ ""） }]${
+    pack.time.digestDays ? '\n- next_pace：次のターンの進み方（日々 / 場面）' : ''
+  }
 - ops：状態変更の提案の配列（なければ空配列）`
 }
 
@@ -131,6 +154,10 @@ export interface TurnExtras {
   playerCheck?: CheckResult
   /** 出来事に付いた判定（確定済み）。出来事IDごと */
   eventChecks?: Record<string, CheckResult[]>
+  /** このターンの時間の進み方 */
+  pace?: Pace
+  /** 場面が何ターン続いているか */
+  sceneTurns?: number
 }
 
 const eventLine = (state: GameState) => (e: WorldEvent) => {
@@ -180,7 +207,13 @@ ${state.plotNotes.length ? `\n自分のメモ：\n${state.plotNotes.map((n) => `
 # 直近の展開
 ${recent || '（まだない）'}
 
-# ${isOpening ? 'ゲーム開始' : 'プレイヤーの行動'}
+${
+    extras.pace
+      ? `# このターンの進み方：${extras.pace}${
+          extras.pace === '場面' && (extras.sceneTurns ?? 0) >= 3 ? '（場面が長くなっている。このターンで決着させ、next_pace を日々にする）' : ''
+        }\n\n`
+      : ''
+  }# ${isOpening ? 'ゲーム開始' : 'プレイヤーの行動'}
 ${isOpening ? pack.opening : action}${
     extras.playerCheck ? `\n判定（確定済み）：${checkLine(extras.playerCheck)}。この結果どおりに描写すること。` : ''
   }`
@@ -217,8 +250,9 @@ export const TURN_JSON_SCHEMA = {
           text: { type: 'string' },
           key: { type: 'string' },
           level: { type: 'string', enum: ['なし', ...LEVELS] },
+          path: { type: 'string' },
         },
-        required: ['text', 'key', 'level'],
+        required: ['text', 'key', 'level', 'path'],
       },
     },
     ops: {
@@ -241,8 +275,9 @@ export const TURN_JSON_SCHEMA = {
         required: ['op'],
       },
     },
+    next_pace: { type: 'string', enum: ['日々', '場面'] },
   },
-  required: ['narrative', 'check', 'suggestions', 'ops'],
+  required: ['narrative', 'check', 'suggestions', 'ops', 'next_pace'],
 } as const
 
 export const SUMMARY_JSON_SCHEMA = {

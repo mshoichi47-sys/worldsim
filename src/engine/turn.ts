@@ -10,6 +10,8 @@ import {
 } from './prompt'
 import {
   activeConstraints,
+  fromOrdinal,
+  nextEventOrdinal,
   activeInfluences,
   checkTable,
   daysBetween,
@@ -27,10 +29,12 @@ import {
 import { normalizeState, slotLabel } from './state'
 import {
   LEVELS,
+  PACES,
   RawOpSchema,
   SummaryResponseSchema,
   type CheckResult,
   type GameState,
+  type Pace,
   type RawOp,
   type Suggestion,
   type WorldPack,
@@ -65,7 +69,8 @@ function readTurnResponse(text: string) {
       else broken.push({ op: raw as RawOp, reason: '形式が不正' })
     }
   }
-  return { narrative: obj.narrative.trim(), suggestions: suggestions as Suggestion[], ops, broken, check }
+  const nextPace = (PACES as readonly unknown[]).includes(obj.next_pace) ? (obj.next_pace as Pace) : undefined
+  return { narrative: obj.narrative.trim(), suggestions: suggestions as Suggestion[], ops, broken, check, nextPace }
 }
 
 const isLevel = (v: unknown): v is Suggestion['level'] => typeof v === 'string' && (LEVELS as readonly string[]).includes(v)
@@ -74,9 +79,12 @@ const isLevel = (v: unknown): v is Suggestion['level'] => typeof v === 'string' 
 export function readSuggestion(raw: unknown): Suggestion | undefined {
   if (typeof raw === 'string') return raw.trim() ? { text: raw.trim() } : undefined
   if (!raw || typeof raw !== 'object') return undefined
-  const o = raw as { text?: unknown; key?: unknown; level?: unknown }
+  const o = raw as { text?: unknown; key?: unknown; level?: unknown; path?: unknown }
   if (typeof o.text !== 'string' || !o.text.trim()) return undefined
-  return typeof o.key === 'string' && o.key && isLevel(o.level) ? { text: o.text.trim(), key: o.key, level: o.level } : { text: o.text.trim() }
+  const out: Suggestion = { text: o.text.trim() }
+  if (typeof o.key === 'string' && o.key && isLevel(o.level)) Object.assign(out, { key: o.key, level: o.level })
+  if (typeof o.path === 'string' && o.path) out.path = o.path
+  return out
 }
 
 export interface TurnOptions {
@@ -125,6 +133,10 @@ export async function runTurn(
   const chosen = opts.chosen && opts.chosen.text === action.trim() ? opts.chosen : undefined
   const playerCheck = chosen?.key ? resolveCheck(pack, state, chosen.key, chosen.level, roll) : undefined
 
+  // このターンの時間の進み方。予定の出来事が起きるターンは必ず「場面」
+  const paced = !!pack.time.digestDays
+  const pace: Pace | undefined = paced ? (dueEvents(pack, state).length ? '場面' : (state.pace ?? '日々')) : undefined
+
   const request = {
     kind: 'turn' as const,
     system: buildSystemPrompt(pack),
@@ -136,6 +148,8 @@ export async function runTurn(
       constraints: activeConstraints(pack, state),
       playerCheck,
       eventChecks,
+      pace,
+      sceneTurns: state.sceneTurns ?? 0,
     }),
     schema: TURN_JSON_SCHEMA,
     meta: { pack, state, action: shownAction },
@@ -163,6 +177,31 @@ export async function runTurn(
 
   const applied = applyOps(state, pack, parsed.ops.filter((o) => o.op !== 'check'), { roll })
   let next = applied.state
+
+  // 時間の2段階：場面では時計をほぼ止め（1ターン最大1時間帯）、日々では数日まとめて進める
+  let dateEnd: string | undefined
+  if (pace) {
+    const n = Math.max(1, pack.time.slots?.length ?? 1)
+    const before = nowOrdinal(pack, state)
+    let after = nowOrdinal(pack, next)
+    if (pace === '場面') {
+      after = Math.min(after, before + 1)
+    } else {
+      const [minD, maxD] = pack.time.digestDays!
+      const d0 = Math.floor(before / n)
+      const days = Math.floor(after / n) - d0
+      // 下限より短ければ下限の日の朝まで、上限より長ければ上限の日の朝まで
+      if (days < minD) after = (d0 + minD) * n
+      else if (days > maxD) after = (d0 + maxD) * n
+      const ev = nextEventOrdinal(pack, state)
+      if (ev !== undefined && ev < after) after = ev
+      if (Math.floor(after / n) > d0) dateEnd = fromOrdinal(pack, after - 1).date
+    }
+    const t = fromOrdinal(pack, Math.max(before, after))
+    next.date = t.date
+    next.slotIndex = t.slotIndex
+  }
+
   const trusted = (ops: RawOp[]) => {
     if (!ops.length) return
     const r = applyOps(next, pack, ops, { roll, trusted: true })
@@ -175,6 +214,12 @@ export async function runTurn(
     if (c.ok && growth) trusted([{ op: 'adjust_stat', target: 'player', key: c.key, delta: growth }])
   }
   trusted(eventRollEffects)
+  // 候補から選んだ「道」が進む（判定の成否で進み方が変わる）
+  const path = chosen?.path ? pack.paths.find((p) => p.id === chosen.path) : undefined
+  if (path) {
+    const gain = playerCheck ? (playerCheck.ok ? path.gain.success : path.gain.fail) : path.gain.plain
+    trusted([{ op: 'adjust_stat', target: 'player', key: path.stat, delta: gain }])
+  }
   // 固定イベントを処理済みにし、原作どおりのときは決まった効果を適用する
   const happened: string[] = []
   for (const d of due) {
@@ -208,6 +253,12 @@ export async function runTurn(
     if (loc) c.location = loc
   }
 
+  if (pace) {
+    next.sceneTurns = pace === '場面' ? (state.sceneTurns ?? 0) + 1 : 0
+    // 場面が長引きすぎたら、次は日々に戻す
+    next.pace = next.sceneTurns >= 6 ? '日々' : (parsed.nextPace ?? '日々')
+  }
+
   next.turn = state.turn + 1
   next.suggestions = parsed.suggestions
   next.cards.push({
@@ -219,6 +270,8 @@ export async function runTurn(
     changes: applied.changes,
     events: happened.length ? happened : undefined,
     checks: checks.length ? checks : undefined,
+    dateEnd: dateEnd && dateEnd !== whenBefore.date ? dateEnd : undefined,
+    pace,
   })
   next.updatedAt = Date.now()
 

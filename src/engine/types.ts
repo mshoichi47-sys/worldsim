@@ -41,7 +41,13 @@ export interface Suggestion {
   text: string
   key?: string
   level?: (typeof LEVELS)[number]
+  /** どの「道」（過ごし方）に打ち込む行動か */
+  path?: string
 }
+
+/** 時間の進み方。日々＝数日をまとめて進める／場面＝その場をじっくり描き、時計をほぼ止める */
+export const PACES = ['日々', '場面'] as const
+export type Pace = (typeof PACES)[number]
 
 export const TurnResponseSchema = z.object({
   narrative: z.string().min(1),
@@ -210,6 +216,8 @@ export const WorldPackSchema = z.object({
     slots: z.array(z.string()).optional(),
     /** 1ターンの長さの目安（AIに渡す） */
     turnHint: z.string(),
+    /** 「日々」のターンで進める日数の範囲。指定すると、時間の2段階（日々／場面）が有効になる */
+    digestDays: z.tuple([z.number(), z.number()]).optional(),
   }),
   worldStats: z.array(StatDefSchema).default([]),
   playerStats: z.array(StatDefSchema).default([]),
@@ -226,6 +234,20 @@ export const WorldPackSchema = z.object({
   triggers: z.array(TriggerSchema).default([]),
   drift: z.array(DriftSchema).default([]),
   constraints: z.array(ConstraintSchema).default([]),
+  /** 過ごし方の「道」。進み具合はプレイヤーのステータス（stat）で持ち、節目は triggers で書く */
+  paths: z
+    .array(
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        summary: z.string(),
+        /** 進み具合を持つプレイヤーステータスのキー */
+        stat: z.string(),
+        /** 候補を選んだときに進む量（判定に成功／失敗／判定なし） */
+        gain: z.object({ success: z.number(), fail: z.number(), plain: z.number() }).default({ success: 8, fail: 3, plain: 5 }),
+      }),
+    )
+    .default([]),
   /** 日課の型（人物の routine から名前で参照） */
   routines: z.record(z.string(), z.record(z.string(), z.string())).default({}),
   /** 開始時の隠し筋書き（プレイヤーに見せない真相など） */
@@ -276,6 +298,9 @@ export interface StoryCard {
   events?: string[]
   /** このターンの判定 */
   checks?: CheckResult[]
+  /** 「日々」のターンで、どの日までをまとめて描いたか */
+  dateEnd?: string
+  pace?: Pace
 }
 
 export interface GameState {
@@ -307,6 +332,10 @@ export interface GameState {
   /** AIが残す伏線メモ（プレイヤーに見せない） */
   plotNotes: string[]
   suggestions: Suggestion[]
+  /** 次のターンの時間の進み方 */
+  pace?: Pace
+  /** 「場面」が何ターン続いているか */
+  sceneTurns?: number
   cards: StoryCard[]
   updatedAt: number
 }
