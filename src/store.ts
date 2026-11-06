@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { AIError } from './ai/provider'
 import { createInitialState, normalizeState } from './engine/state'
 import { runTurn } from './engine/turn'
-import type { GameState, WorldPack } from './engine/types'
+import type { GameState, Suggestion, WorldPack } from './engine/types'
 import { loadSettings, makeProvider, saveSettings, type Settings } from './settings'
 import { autoSave, deleteSave, importSave, listSaves, loadSave, type SaveRecord } from './storage/db'
 import { getWorld } from './worlds'
@@ -20,7 +20,7 @@ interface AppState {
   refreshSaves: () => Promise<void>
   startNew: (worldId: string, playerName?: string) => Promise<void>
   resume: (worldId: string) => Promise<void>
-  act: (action: string) => Promise<void>
+  act: (action: string, chosen?: Suggestion) => Promise<void>
   goHome: () => void
   updateSettings: (patch: Partial<Settings>) => void
   importFile: (file: File) => Promise<void>
@@ -56,12 +56,12 @@ export const useApp = create<AppState>((set, get) => ({
     if (game.cards.length === 0) await get().act('')
   },
 
-  act: async (action) => {
+  act: async (action, chosen) => {
     const { pack, game, busy, settings } = get()
     if (!pack || !game || busy) return
     set({ busy: true, error: undefined, warning: undefined })
     try {
-      const r = await runTurn(pack, game, action, makeProvider(settings))
+      const r = await runTurn(pack, game, action, makeProvider(settings), undefined, { chosen })
       await autoSave(r.state)
       if (r.rejected.length) console.info('捨てた操作', r.rejected)
       set({ game: r.state, warning: r.warning })

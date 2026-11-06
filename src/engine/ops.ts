@@ -16,9 +16,22 @@ const MAX_PLOT_NOTES = 20
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
 
-function limitDelta(def: StatDef, delta: number): number {
-  const cap = def.maxDelta ?? Math.max(1, Math.round((def.max - def.min) * 0.2))
-  return clamp(Math.round(delta), -cap, cap)
+const capOf = (def: StatDef) => def.maxDelta ?? Math.max(1, Math.round((def.max - def.min) * 0.2))
+
+/**
+ * AIの提案した増減を制限する。
+ * - 1ターンの合計で maxDelta まで（同じ数値に何度も足して上限を超えるのを防ぐ）
+ * - プレイヤーの数値は、高いほど上がりにくい（60以上は半分、80以上は+1まで）
+ */
+function limitDelta(def: StatDef, delta: number, current: number, used: number, isPlayer: boolean): number {
+  const cap = capOf(def)
+  let d = Math.round(delta)
+  if (isPlayer && d > 0) {
+    const pos = ((current - def.min) / (def.max - def.min)) * 100
+    if (pos >= 80) d = Math.min(d, 1)
+    else if (pos >= 60) d = Math.ceil(d / 2)
+  }
+  return clamp(d, -cap - used, cap - used)
 }
 
 function findDef(defs: StatDef[], key: string | undefined): StatDef | undefined {
@@ -42,6 +55,16 @@ export function applyOps(
   const rejected: ApplyResult['rejected'] = []
   const reject = (op: RawOp, reason: string) => rejected.push({ op, reason })
 
+  // このターンにすでに動かした量（数値ごと）
+  const used = new Map<string, number>()
+  const step = (id: string, def: StatDef, delta: number, current: number, isPlayer: boolean) => {
+    if (ctx.trusted) return Math.round(delta)
+    const u = used.get(id) ?? 0
+    const d = limitDelta(def, delta, current, u, isPlayer)
+    used.set(id, u + d)
+    return d
+  }
+
   const charOf = (target: string | undefined) => {
     if (!target) return undefined
     return s.characters[target] ?? Object.values(s.characters).find((c) => c.name === target)
@@ -60,13 +83,13 @@ export function applyOps(
           const def = findDef(pack.worldStats, op.key)
           if (!def) { reject(op, '未定義の世界ステータス'); break }
           const before = s.worldStats[def.key]
-          s.worldStats[def.key] = clamp(before + (ctx.trusted ? Math.round(op.delta) : limitDelta(def, op.delta)), def.min, def.max)
+          s.worldStats[def.key] = clamp(before + step(`world.${def.key}`, def, op.delta, before, false), def.min, def.max)
           pushChange(changes, def.label, before, s.worldStats[def.key])
         } else if (target === 'player') {
           const def = findDef(pack.playerStats, op.key)
           if (!def) { reject(op, '未定義のプレイヤーステータス'); break }
           const before = s.player.stats[def.key]
-          s.player.stats[def.key] = clamp(before + (ctx.trusted ? Math.round(op.delta) : limitDelta(def, op.delta)), def.min, def.max)
+          s.player.stats[def.key] = clamp(before + step(`player.${def.key}`, def, op.delta, before, true), def.min, def.max)
           pushChange(changes, def.label, before, s.player.stats[def.key])
         } else {
           const c = charOf(target)
@@ -75,14 +98,15 @@ export function applyOps(
           if (!def) { reject(op, '未定義の人物ステータス'); break }
           if (c.status === 'dead') { reject(op, '死亡した人物'); break }
           const before = c.stats[def.key]
-          c.stats[def.key] = clamp(before + (ctx.trusted ? Math.round(op.delta) : limitDelta(def, op.delta)), def.min, def.max)
+          c.stats[def.key] = clamp(before + step(`${c.id}.${def.key}`, def, op.delta, before, false), def.min, def.max)
           pushChange(changes, `${c.name}の${def.label}`, before, c.stats[def.key])
         }
         break
       }
       case 'set_flag': {
         if (!op.key || op.value === undefined) { reject(op, 'key/value がない'); break }
-        s.flags[op.key] = op.value
+        // AIは真偽値を文字列で返すことがあるので、条件判定で食い違わないようにそろえる
+        s.flags[op.key] = op.value === 'true' ? true : op.value === 'false' ? false : op.value
         break
       }
       case 'move': {

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { resolveCheck } from '../engine/rules'
 import { formatDate, formatWhen } from '../engine/state'
+import type { Suggestion } from '../engine/types'
 import { useApp } from '../store'
 import { SettingsPanel } from './SettingsPanel'
 import { StatusPanel } from './StatusPanel'
@@ -22,13 +24,16 @@ export function Game() {
   if (!pack || !game) return null
   const isNew = (turn: number) => turn > seenTurn
 
-  const send = (action: string) => {
+  const send = (action: string, chosen?: Suggestion) => {
     if (!action.trim() || busy) return
     setSeenTurn(game.turn)
-    void act(action.trim()).then(() => {
-      if (!useApp.getState().error) setText('')
+    setTab('story')
+    void act(action.trim(), chosen).then(() => {
+      if (!useApp.getState().error && !chosen) setText('')
     })
   }
+  // 候補の成功率（今のステータスで計算。サイコロの目は関係ないので roll=0 を渡す）
+  const chanceOf = (s: Suggestion) => (s.key ? resolveCheck(pack, game, s.key, s.level, 0) : undefined)
   const retryOpening = game.cards.length === 0
 
   return (
@@ -50,6 +55,15 @@ export function Game() {
                   <div>
                     {c.events?.map((t) => <div className="event-title" key={t}>{t}</div>)}
                     {c.turn > 1 && <div className="action">行動：<b>{c.action}</b></div>}
+                    {c.checks?.map((k, i) => (
+                      <div className={`check ${k.ok ? 'ok' : 'ng'}`} key={i}>
+                        <span className="check-what">
+                          {k.label ? `${k.label}　` : ''}
+                          {k.statLabel}・{k.level}（成功率{k.chance}%）
+                        </span>
+                        <b>{k.ok ? '成功' : '失敗'}</b>
+                      </div>
+                    ))}
                     <div className="narrative">{c.narrative}</div>
                     {c.changes.length > 0 && (
                       <div className="changes">{c.changes.map((ch, i) => <span key={i}>{ch}</span>)}</div>
@@ -61,11 +75,11 @@ export function Game() {
               <div ref={endRef} />
             </div>
           )}
-          {tab === 'status' && <StatusPanel pack={pack} game={game} />}
+          {tab === 'status' && <StatusPanel pack={pack} game={game} onAction={busy ? undefined : send} />}
           {tab === 'settings' && <SettingsPanel />}
         </div>
         <aside className="side scroll">
-          <StatusPanel pack={pack} game={game} />
+          <StatusPanel pack={pack} game={game} onAction={busy ? undefined : send} />
         </aside>
       </div>
 
@@ -85,9 +99,15 @@ export function Game() {
               <>
                 {game.suggestions.length > 0 && (
                   <div className="suggestions">
-                    {game.suggestions.map((s, i) => (
-                      <button key={i} disabled={busy} onClick={() => send(s)}>{s}</button>
-                    ))}
+                    {game.suggestions.map((s, i) => {
+                      const c = chanceOf(s)
+                      return (
+                        <button key={i} disabled={busy} onClick={() => send(s.text, s)}>
+                          <span>{s.text}</span>
+                          {c && <small>{c.statLabel}・{c.level}　{c.chance}%</small>}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
                 <form

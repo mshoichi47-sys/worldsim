@@ -30,7 +30,15 @@ function Meters({ defs, values }: { defs: StatDef[]; values: Record<string, numb
   )
 }
 
-export function StatusPanel({ pack, game }: { pack: WorldPack; game: GameState }) {
+export function StatusPanel({
+  pack,
+  game,
+  onAction,
+}: {
+  pack: WorldPack
+  game: GameState
+  onAction?: (text: string) => void
+}) {
   const download = () => {
     const url = URL.createObjectURL(exportSave(game))
     const a = document.createElement('a')
@@ -65,7 +73,7 @@ export function StatusPanel({ pack, game }: { pack: WorldPack; game: GameState }
         {house ? `（${house}）` : ''}
       </h2>
       {game.player.location && <p className="where-now">いる場所：{game.player.location}</p>}
-      {pack.map && <WorldMapView map={pack.map} game={game} />}
+      {pack.map && <WorldMapView map={pack.map} game={game} onAction={onAction} />}
       <Meters defs={pack.playerStats} values={game.player.stats} />
       {game.player.inventory.length > 0 && (
         <div className="tags" aria-label="持ち物">

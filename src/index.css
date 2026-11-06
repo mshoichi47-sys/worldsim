@@ -205,3 +205,29 @@ h1, h2, h3 { margin: 0; font-weight: 700; line-height: 1.3; }
 .name-form { margin-top: 0.9rem; display: grid; gap: 0.35rem; }
 .name-form label { font-size: 0.9rem; font-weight: 700; }
 .name-form input { flex: 1; min-width: 10rem; border: 1px solid var(--rule); border-radius: 6px; padding: 0.45rem 0.6rem; background: var(--paper-2); }
+
+/* ===== 判定 ===== */
+.suggestions button { display: grid; text-align: left; line-height: 1.35; padding: 0.35rem 0.9rem; border-radius: 12px; }
+.suggestions button small { color: var(--muted); font-size: 0.75rem; }
+.check {
+  display: flex; justify-content: space-between; gap: 0.75rem; align-items: baseline;
+  border-left: 3px solid var(--rule); padding: 0.15rem 0 0.15rem 0.6rem; margin-bottom: 0.5rem; font-size: 0.85rem;
+}
+.check .check-what { color: var(--muted); }
+.check.ok { border-left-color: var(--lamp); }
+.check.ng { border-left-color: var(--alert); }
+.check.ng b { color: var(--alert); }
+
+/* ===== 見取り図の操作 ===== */
+.map-place { cursor: pointer; outline: none; }
+.map-hit { fill: transparent; }
+.map-sel { fill: none; stroke: var(--lamp); stroke-width: 1.5; }
+.map-place:focus-visible .map-hit { stroke: var(--lamp); stroke-width: 2; }
+.map-place:hover .map-label { text-decoration: underline; }
+.place-card { border: 1px solid var(--rule); border-radius: 8px; padding: 0.6rem 0.75rem; margin-bottom: 0.75rem; }
+.place-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.place-here { color: var(--lamp); font-size: 0.85rem; font-weight: 700; }
+.place-empty { color: var(--muted); font-size: 0.9rem; margin: 0.4rem 0 0; }
+.place-people { list-style: none; padding: 0; margin: 0.4rem 0 0; }
+.place-people li { display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; border-top: 1px solid var(--rule); }
+.place-people .btn { padding: 0.2em 0.7em; font-size: 0.85rem; }

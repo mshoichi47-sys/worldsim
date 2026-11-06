@@ -1,4 +1,4 @@
-import type { Condition, GameState, StatDef, WorldEvent, WorldPack } from './types'
+import type { CheckResult, Condition, GameState, StatDef, WorldEvent, WorldPack } from './types'
 
 /* ========== 時間の通し番号（日付×時間帯） ========== */
 
@@ -161,4 +161,87 @@ export function checkTable(pack: WorldPack, s: GameState, roll: number): string 
 
 export function rollD100(): number {
   return Math.floor(Math.random() * 100) + 1
+}
+
+/* ========== 判定の解決 ========== */
+
+/** 判定1回分を解決する。使えないステータスなら undefined */
+export function resolveCheck(
+  pack: WorldPack,
+  s: GameState,
+  key: string | undefined,
+  level: string | undefined,
+  roll: number,
+  label = '',
+): CheckResult | undefined {
+  const def = pack.playerStats.find((d) => d.checkable && (d.key === key || d.label === key))
+  if (!def || !level || !(CHECK_LEVELS as readonly string[]).includes(level)) return undefined
+  const lv = level as CheckLevel
+  const v = s.player.stats[def.key]
+  return {
+    key: def.key,
+    label,
+    statLabel: def.label,
+    level: lv,
+    chance: checkChance(def, v, lv),
+    ok: checkSucceeds(def, v, lv, roll),
+  }
+}
+
+export const checkLine = (c: CheckResult) =>
+  `${c.label ? c.label + '：' : ''}${c.statLabel}（${c.level}・成功率${c.chance}%）→ ${c.ok ? '成功' : '失敗'}`
+
+/* ========== 日ごとの変動 ========== */
+
+export const daysBetween = (a: string, b: string) => dayNumber(b) - dayNumber(a)
+
+/** 経過日数ぶんの変動量を数値ごとに合計する */
+export function driftAmounts(pack: WorldPack, s: GameState, days: number, rand: () => number = Math.random) {
+  const out: { key: string; label: string; delta: number }[] = []
+  if (days <= 0) return out
+  for (const d of pack.drift) {
+    if (!meets(s, d.when)) continue
+    const [lo, hi] = d.perDay
+    let sum = 0
+    for (let i = 0; i < days; i++) sum += lo + Math.floor(rand() * (hi - lo + 1))
+    if (sum !== 0) out.push({ key: d.key, label: d.label, delta: sum })
+  }
+  return out
+}
+
+/* ========== 日課 ========== */
+
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
+
+/** 人物がこの日・この時間帯にいるはずの場所。holiday が true の日（休暇中）は毎日「休:」の日課を使う */
+export function routineLocation(
+  pack: WorldPack,
+  charId: string,
+  date: string,
+  slot: string | undefined,
+  holidayFlag = false,
+): string | undefined {
+  const def = pack.characters.find((c) => c.id === charId)
+  if (!def?.routine || !slot) return undefined
+  const table = typeof def.routine === 'string' ? pack.routines[def.routine] : def.routine
+  if (!table) return undefined
+  const wd = WEEKDAYS[new Date(`${date}T00:00:00Z`).getUTCDay()]
+  const holiday = holidayFlag || wd === '土' || wd === '日'
+  if (holiday) return table[`休:${slot}`] ?? table[slot]
+  return table[`${wd}:${slot}`] ?? table[slot]
+}
+
+/* ========== 時期の制約 ========== */
+
+export function activeConstraints(pack: WorldPack, s: GameState): string[] {
+  return pack.constraints
+    .filter((c) => (!c.until || s.date < c.until) && !(c.unless && meets(s, c.unless)))
+    .map((c) => c.text)
+}
+
+/** 予定の時刻を1日以上過ぎてもまだ処理されていない出来事（世界パックを後から足したときに起きる） */
+export function overdueEvents(pack: WorldPack, s: GameState): WorldEvent[] {
+  const n = slotCount(pack)
+  const now = nowOrdinal(pack, s)
+  return pack.events.filter((ev) => !s.firedEvents[ev.id] && eventOrdinal(pack, ev) < now - n)
 }

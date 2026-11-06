@@ -39,7 +39,16 @@ export function createInitialState(pack: WorldPack): GameState {
 
 /** 古いセーブに後から足した項目を補う */
 export function normalizeState(s: GameState): GameState {
-  return { ...s, firedEvents: s.firedEvents ?? {}, plotNotes: s.plotNotes ?? [] }
+  return {
+    ...s,
+    firedEvents: { ...(s.firedEvents ?? {}) },
+    plotNotes: s.plotNotes ?? [],
+    flags: Object.fromEntries(
+      Object.entries(s.flags ?? {}).map(([k, v]) => [k, v === 'true' ? true : v === 'false' ? false : v]),
+    ),
+    // 以前は行動候補を文字列で持っていた
+    suggestions: (s.suggestions ?? []).map((x) => (typeof x === 'string' ? { text: x } : x)),
+  }
 }
 
 /** 'YYYY-MM-DD' に日数を足す（UTCで計算して日付のずれを防ぐ） */

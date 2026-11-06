@@ -34,9 +34,18 @@ export const RawOpSchema = z.object({
 })
 export type RawOp = z.infer<typeof RawOpSchema>
 
+export const LEVELS = ['易', '普通', '難', '至難'] as const
+
+/** 行動候補。判定が絡む候補には、使うステータスと難度が付く */
+export interface Suggestion {
+  text: string
+  key?: string
+  level?: (typeof LEVELS)[number]
+}
+
 export const TurnResponseSchema = z.object({
   narrative: z.string().min(1),
-  suggestions: z.array(z.string()).default([]),
+  suggestions: z.array(z.unknown()).default([]),
   ops: z.array(RawOpSchema).default([]),
 })
 export type TurnResponse = z.infer<typeof TurnResponseSchema>
@@ -58,6 +67,8 @@ export const StatDefSchema = z.object({
   group: z.string().optional(),
   /** 判定（サイコロ）に使えるステータスか */
   checkable: z.boolean().default(false),
+  /** 判定に成功したとき、コードが自動で伸ばす量 */
+  growth: z.number().default(0),
 })
 export type StatDef = z.infer<typeof StatDefSchema>
 
@@ -68,6 +79,8 @@ export const CharacterDefSchema = z.object({
   description: z.string(),
   location: z.string().optional(),
   stats: z.record(z.string(), z.number()).default({}),
+  /** 日課：pack.routines の名前、または「時間帯→場所」の表。キーは「月:午前の授業」「休:放課後」「放課後」の順に探す */
+  routine: z.union([z.string(), z.record(z.string(), z.string())]).optional(),
 })
 export type CharacterDef = z.infer<typeof CharacterDefSchema>
 
@@ -110,6 +123,21 @@ export const WorldEventSchema = z.object({
   alt: z.string().optional(),
   /** 起きたときに自動で適用する操作 */
   effects: z.array(RawOpSchema).default([]),
+  /** 出来事に付く判定。コードがその場でサイコロを振り、結果を確定させてからAIに渡す */
+  rolls: z
+    .array(
+      z.object({
+        key: z.string(),
+        level: z.enum(LEVELS),
+        /** 何の判定か（例：初試合でスニッチを追う） */
+        label: z.string(),
+        /** この条件を満たすときだけ振る（例：プレイヤーが選手のとき） */
+        when: ConditionSchema.optional(),
+        onSuccess: z.array(RawOpSchema).default([]),
+        onFail: z.array(RawOpSchema).default([]),
+      }),
+    )
+    .default([]),
   /** 予定としてプレイヤーに見せるか（ネタばれになるものは false） */
   public: z.boolean().default(false),
 })
@@ -132,6 +160,28 @@ export const TriggerSchema = z.object({
   effects: z.array(RawOpSchema).default([]),
 })
 export type Trigger = z.infer<typeof TriggerSchema>
+
+/** 日ごとに世界の数値が勝手に動く（例：ほかの生徒が寮点を稼ぐ） */
+export const DriftSchema = z.object({
+  key: z.string(),
+  /** 1日あたりの増減の範囲（この範囲の整数が毎日ランダムに足される） */
+  perDay: z.tuple([z.number(), z.number()]),
+  /** カードに出す理由（例：ほかの生徒） */
+  label: z.string().default(''),
+  when: ConditionSchema.optional(),
+})
+export type Drift = z.infer<typeof DriftSchema>
+
+/** この時期に守る世界の制約（物語の進み過ぎを防ぐ。AIに渡す） */
+export const ConstraintSchema = z.object({
+  id: z.string(),
+  /** この日付まで有効（省略時はずっと） */
+  until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  /** この条件を満たしたら外れる */
+  unless: ConditionSchema.optional(),
+  text: z.string(),
+})
+export type Constraint = z.infer<typeof ConstraintSchema>
 
 export const MapSchema = z.object({
   width: z.number(),
@@ -174,6 +224,10 @@ export const WorldPackSchema = z.object({
   events: z.array(WorldEventSchema).default([]),
   influences: z.array(InfluenceSchema).default([]),
   triggers: z.array(TriggerSchema).default([]),
+  drift: z.array(DriftSchema).default([]),
+  constraints: z.array(ConstraintSchema).default([]),
+  /** 日課の型（人物の routine から名前で参照） */
+  routines: z.record(z.string(), z.record(z.string(), z.string())).default({}),
   /** 開始時の隠し筋書き（プレイヤーに見せない真相など） */
   hiddenPlot: z.string().default(''),
   /** 開始前にプレイヤーの名前を聞くか */
@@ -197,6 +251,17 @@ export interface CharacterState {
   stats: Record<string, number>
   /** そのキャラが覚えていること */
   memories: string[]
+  /** AIが最後に動かした時刻（この時刻のあいだは日課より優先） */
+  movedAt?: number
+}
+
+export interface CheckResult {
+  key: string
+  label: string
+  statLabel: string
+  level: string
+  chance: number
+  ok: boolean
 }
 
 export interface StoryCard {
@@ -209,6 +274,8 @@ export interface StoryCard {
   changes: string[]
   /** このターンに起きた固定イベントの題名 */
   events?: string[]
+  /** このターンの判定 */
+  checks?: CheckResult[]
 }
 
 export interface GameState {
@@ -237,7 +304,7 @@ export interface GameState {
   hiddenPlot: string
   /** AIが残す伏線メモ（プレイヤーに見せない） */
   plotNotes: string[]
-  suggestions: string[]
+  suggestions: Suggestion[]
   cards: StoryCard[]
   updatedAt: number
 }
