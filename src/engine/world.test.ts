@@ -105,6 +105,7 @@ describe('世界が勝手に動く', () => {
     const s = afterArrival()
     s.date = '1991-09-20'
     s.driftedThrough = s.date
+    s.pace = '日々'
     for (const ev of pack.events) if (ev.date <= '1991-09-20') s.firedEvents[ev.id] = 'canon'
     const r = await runTurn(pack, s, '週末を過ごす', scripted({ ops: [{ op: 'advance_time', days: 3 }] }), 50, { rand: fixedRand(0.99) })
     expect(r.state.worldStats.points_ravenclaw).toBe(12)
@@ -114,12 +115,14 @@ describe('世界が勝手に動く', () => {
   it('古いセーブは、開始日からの寮点の変動をまとめて追いつく', async () => {
     const s = afterArrival()
     s.date = '1991-09-11'
+    s.pace = '場面'
     delete s.driftedThrough
     for (const ev of pack.events) if (ev.date <= '1991-09-11') s.firedEvents[ev.id] = 'canon'
-    const r = await runTurn(pack, s, '様子を見る', scripted(), 50, { rand: fixedRand(0.99) })
+    const stay = scripted({ next_pace: '場面' })
+    const r = await runTurn(pack, s, '様子を見る', stay, 50, { rand: fixedRand(0.99) })
     expect(r.state.worldStats.points_slytherin).toBe(40) // 10日分
     expect(r.state.driftedThrough).toBe('1991-09-11')
-    const r2 = await runTurn(pack, r.state, '様子を見る', scripted(), 50, { rand: fixedRand(0.99) })
+    const r2 = await runTurn(pack, r.state, '様子を見る', stay, 50, { rand: fixedRand(0.99) })
     expect(r2.state.worldStats.points_slytherin).toBe(40) // 同じ日なら増えない
   })
 
@@ -130,17 +133,18 @@ describe('世界が勝手に動く', () => {
     const s = afterArrival()
     s.date = '1991-09-03' // 火曜
     s.slotIndex = 0
+    s.pace = '場面'
     const r = await runTurn(
       pack,
       s,
       'ハグリッドを誘う',
-      scripted({ ops: [{ op: 'move', target: 'hagrid', location: '大広間' }, { op: 'advance_time', slots: 1 }] }),
+      scripted({ next_pace: '場面', ops: [{ op: 'move', target: 'hagrid', location: '大広間' }, { op: 'advance_time', slots: 1 }] }),
       50,
     )
     expect(r.state.characters.ron.location).toBe('呪文学の教室')
     expect(r.state.characters.snape.location).toBe('魔法薬学の教室')
     expect(r.state.characters.hagrid.location).toBe('大広間')
-    const r2 = await runTurn(pack, r.state, '授業に出る', scripted({ ops: [{ op: 'advance_time', slots: 1 }] }), 50)
+    const r2 = await runTurn(pack, r.state, '授業に出る', scripted({ next_pace: '場面', ops: [{ op: 'advance_time', slots: 1 }] }), 50)
     expect(r2.state.characters.hagrid.location).toBe('ハグリッドの小屋')
   })
 })
@@ -203,5 +207,81 @@ describe('出来事の判定と時期', () => {
       const t = typeof c.routine === 'string' ? pack.routines[c.routine] : c.routine
       for (const loc of Object.values(t ?? {})) expect(pack.locations).toContain(loc)
     }
+  })
+})
+
+describe('時間の2段階（日々／場面）', () => {
+  const quiet = (date: string): GameState => {
+    const s = afterArrival()
+    s.date = date
+    s.driftedThrough = date
+    for (const ev of pack.events) if (ev.date <= date) s.firedEvents[ev.id] = 'canon'
+    return s
+  }
+
+  it('日々のターンは、AIが時間を進めなくても最低2日は進み、期間がカードに出る', async () => {
+    const r = await runTurn(pack, quiet('1991-09-20'), '図書館にこもる', scripted(), 50)
+    expect(r.state.date).toBe('1991-09-22')
+    expect(r.state.slotIndex).toBe(0)
+    expect(r.state.cards.at(-1)).toMatchObject({ pace: '日々', date: '1991-09-20', dateEnd: '1991-09-21' })
+  })
+
+  it('日々でも7日より先へは進まず、予定の出来事の前で止まる', async () => {
+    const r1 = await runTurn(pack, quiet('1991-09-20'), '過ごす', scripted({ ops: [{ op: 'advance_time', days: 30 }] }), 50)
+    expect(r1.state.date).toBe('1991-09-27')
+    const s = quiet('1991-11-05') // 11/8 放課後に予定あり
+    const r2 = await runTurn(pack, s, '過ごす', scripted({ ops: [{ op: 'advance_time', days: 7 }] }), 50)
+    expect(r2.state.date).toBe('1991-11-08')
+    expect(pack.time.slots?.[r2.state.slotIndex]).toBe('放課後')
+  })
+
+  it('予定の出来事が起きるターンは場面になり、時計はほとんど進まない', async () => {
+    const s = afterArrival()
+    s.firedEvents.sorting = undefined as never
+    delete s.firedEvents.sorting
+    s.slotIndex = 4 // 9/1 夜＝組分け
+    const ai = scripted({ ops: [{ op: 'advance_time', days: 3 }] })
+    const r = await runTurn(pack, s, '帽子をかぶる', ai, 50)
+    expect(ai.prompts[0]).toContain('このターンの進み方：場面')
+    expect(r.state.date).toBe('1991-09-01')
+    expect(pack.time.slots?.[r.state.slotIndex]).toBe('深夜')
+    expect(r.state.cards.at(-1)?.pace).toBe('場面')
+  })
+
+  it('場面が長引いたら日々に戻す', async () => {
+    const s = quiet('1991-09-20')
+    s.pace = '場面'
+    s.sceneTurns = 5
+    const r = await runTurn(pack, s, '話し続ける', scripted({ next_pace: '場面' }), 50)
+    expect(r.state.pace).toBe('日々')
+    expect(r.state.sceneTurns).toBe(6)
+  })
+})
+
+describe('過ごし方の道', () => {
+  it('道の付いた候補を選ぶと、その道が進む（判定の成否で量が変わる）', async () => {
+    const ok = { text: '練習を見に行く', key: 'flying', level: '易' as const, path: 'quidditch' }
+    const r1 = await runTurn(pack, afterArrival(), ok.text, scripted(), 10, { chosen: ok })
+    expect(r1.state.player.stats.path_quidditch).toBe(8)
+    const r2 = await runTurn(pack, afterArrival(), ok.text, scripted(), 99, { chosen: ok })
+    expect(r2.state.player.stats.path_quidditch).toBe(3)
+    const plain = { text: '小屋でお茶を飲む', path: 'creatures' }
+    const r3 = await runTurn(pack, afterArrival(), plain.text, scripted(), 50, { chosen: plain })
+    expect(r3.state.player.stats.path_creatures).toBe(5)
+  })
+
+  it('道の節目で出来事が起き、先の展開に効く（クィディッチ90で選手になり、試合で判定を受ける）', async () => {
+    const s = afterArrival()
+    s.player.stats.path_quidditch = 90
+    const r = await runTurn(pack, s, '練習する', scripted(), 50)
+    expect(r.state.cards.at(-1)?.events).toEqual(expect.arrayContaining(['キャプテンの目に留まる', '練習に加わる', '寮チームの選手に']))
+    expect(r.state.flags.player_on_team).toBe(true)
+  })
+
+  it('道と過ごし方の指示がAIに渡り、候補の道を読める', async () => {
+    const ai = scripted()
+    await runTurn(pack, afterArrival(), '過ごす', ai, 50)
+    expect(readSuggestion({ text: 'a', key: '', level: 'なし', path: 'mischief' })).toEqual({ text: 'a', path: 'mischief' })
+    expect(pack.paths.every((p) => pack.playerStats.some((d) => d.key === p.stat))).toBe(true)
   })
 })

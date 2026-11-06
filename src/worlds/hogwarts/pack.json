@@ -3,7 +3,7 @@
   "title": "ホグワーツ",
   "subtitle": "1991年、ハリー・ポッターと同じ年に入学する（1年目：入学〜学年末）",
   "askName": true,
-  "playerRole": "プレイヤーは1991年9月にホグワーツ魔法魔術学校へ入学する11歳の新入生で、ハリー・ポッターたちと同学年。どの寮になるかは9月1日夜の組分けで決まる。生まれ育ち（マグル生まれ・半純血・純血）や家族のことは、プレイヤーの発言や行動から決まる。決まったら set_flag で key=\"blood\" に記録する。",
+  "playerRole": "プレイヤーは1991年9月にホグワーツ魔法魔術学校へ入学する11歳の新入生で、ハリー・ポッターたちと同学年。どの寮になるかは9月1日夜の組分けで決まる。生まれ育ち（マグル生まれ・半純血・純血）や家族のことは、プレイヤーの発言や行動から決まる。決まったら set_flag で key=\"blood\" に記録する。 プレイヤーは本筋（ハリーたちの冒険）に関わってもいいし、勉強、クィディッチ、いたずら、魔法生物、友だち、寮のためなど、自分なりの過ごし方を選んでもいい。",
   "world": "J・K・ローリング『ハリー・ポッターと賢者の石』と同じ世界・同じ時代（1991〜92年）。スコットランドの山あいにあるホグワーツ城には、4つの寮（グリフィンドール、スリザリン、レイブンクロー、ハッフルパフ）がある。校長はアルバス・ダンブルドア。生徒はふくろうで手紙を受け取り、動く階段や肖像画、ゴーストのいる城で暮らす。魔法界ではヴォルデモート卿が10年前に赤ん坊のハリーを殺そうとして失敗し、姿を消した。そのためハリーは「生き残った男の子」として有名である。原作の人物は原作どおりの性格・口調・関係で登場する。プレイヤーは原作の出来事に立ち会い、介入できる。",
   "rules": "- 寮点：先生は生徒の行いに応じて寮点を加点・減点する（1回5〜50点程度）。対応する世界ステータスは points_gryffindor / points_slytherin / points_ravenclaw / points_hufflepuff。プレイヤーの寮はフラグ house に記録される。\n- 夜（「夜」「深夜」の時間帯）に寮の外を出歩くのは校則違反。管理人フィルチや先生に見つかれば減点と罰則になり、player の rule_breaks を増やす。\n- 4階の右側の廊下と禁じられた森は立ち入り禁止。\n- 1年生は自分の箒を持ち込めない。\n- 授業は複数の寮の合同で行われる（たとえばグリフィンドールとスリザリンは魔法薬学と飛行訓練が合同）。時間割は原作に沿って自然に決めてよい。\n- 呪文や授業、試験、隠れて動く、説得する、飛ぶなど、成否が能力に左右される行動は判定に従う。授業で成功を重ねれば、その科目の数値を少しずつ上げる（1回+1〜3）。\n- 勇気・知恵・狡猾・誠実の4つの資質は、プレイヤーの選び方に応じて少しずつ動かす（1回±1〜3）。組分けの帽子はこの4つと本人の希望を見て寮を決める。\n- ステータスは周りに波及する：プレイヤーの評判・成績・資質・規則違反は、同級生や先生の態度、寮点、噂、城の空気に影響する。プレイヤーの行動は、その場にいない人物にも噂として伝わり、関係する人物の数値（好感度・信頼・ライバル心・疑念）も動かす。\n- 寮の対立：グリフィンドールとスリザリンは敵対しがち。プレイヤーの寮によって、他寮の生徒の初期の態度が変わる。\n- 寮杯：1年間の寮点の合計がいちばん多い寮が、学年度末の宴で寮杯を受け取る。ほかの寮の生徒も毎日点を稼いだり失ったりしている（寮点はプログラムが日ごとに動かす）。\n- 人物は日課に沿って城の中を動く（プログラムが居場所を更新する）。授業中の先生は教室に、夜の生徒は寮にいるのがふつう。人物をその場から動かしたいときは move を出す。\n- 休暇中はフラグ holiday が true になり、授業がない。",
   "style": "原作の雰囲気（児童文学らしいユーモアと驚き、城の不思議さ、ときどき差し込む不穏さ）で描く。原作の文章や台詞をそのまま引用せず、自分の言葉で書く。人物の口調は原作の人物像に合わせる。原作の人物の行動は、プレイヤーが介入しない限り原作の流れに沿わせる。プレイヤーの行動を勝手に決めない。",
@@ -17,7 +17,11 @@
       "夜",
       "深夜"
     ],
-    "turnHint": "1ターンはおおむね1つの時間帯。何事もない日々は数日〜数週間まとめて進めてよい（予定の出来事の前で自動的に止まる）"
+    "turnHint": "ふだんは1ターンで数日〜1週間（日々）。予定の出来事や夜の冒険などは、時計を止めてじっくり描く（場面）",
+    "digestDays": [
+      2,
+      7
+    ]
   },
   "worldStats": [
     {
@@ -225,6 +229,69 @@
       "initial": 0,
       "maxDelta": 3,
       "group": "からだ"
+    },
+    {
+      "key": "path_mystery",
+      "label": "本筋：城の謎を追う",
+      "min": 0,
+      "max": 100,
+      "initial": 0,
+      "maxDelta": 6,
+      "group": "道"
+    },
+    {
+      "key": "path_scholar",
+      "label": "学年首席を目指す",
+      "min": 0,
+      "max": 100,
+      "initial": 0,
+      "maxDelta": 6,
+      "group": "道"
+    },
+    {
+      "key": "path_quidditch",
+      "label": "クィディッチ",
+      "min": 0,
+      "max": 100,
+      "initial": 0,
+      "maxDelta": 6,
+      "group": "道"
+    },
+    {
+      "key": "path_mischief",
+      "label": "いたずらと抜け道",
+      "min": 0,
+      "max": 100,
+      "initial": 0,
+      "maxDelta": 6,
+      "group": "道"
+    },
+    {
+      "key": "path_creatures",
+      "label": "魔法生物とハグリッド",
+      "min": 0,
+      "max": 100,
+      "initial": 0,
+      "maxDelta": 6,
+      "group": "道"
+    },
+    {
+      "key": "path_friends",
+      "label": "友だちの輪",
+      "min": 0,
+      "max": 100,
+      "initial": 0,
+      "maxDelta": 6,
+      "group": "道"
+    },
+    {
+      "key": "path_house",
+      "label": "寮のために",
+      "min": 0,
+      "max": 100,
+      "initial": 0,
+      "maxDelta": 6,
+      "group": "道"
     }
   ],
   "characterStats": [
@@ -580,6 +647,83 @@
         "放課後": "クィディッチ競技場",
         "夜": "大広間"
       }
+    },
+    {
+      "id": "seamus",
+      "name": "シェーマス・フィネガン",
+      "description": "グリフィンドールの1年生。アイルランド出身の半純血で、陽気で口が軽い。呪文を唱えるとなぜか爆発させがち。",
+      "location": "ホグワーツ特急",
+      "routine": "gryffindor1"
+    },
+    {
+      "id": "dean",
+      "name": "ディーン・トーマス",
+      "description": "グリフィンドールの1年生。マグル生まれで、サッカーと絵が好きな穏やかな少年。シェーマスの親友。",
+      "location": "ホグワーツ特急",
+      "routine": "gryffindor1"
+    },
+    {
+      "id": "parvati",
+      "name": "パーバティ・パチル",
+      "description": "グリフィンドールの1年生。噂話と占いが好きで、ラベンダーといつも一緒。双子の姉妹パドマはレイブンクロー。",
+      "location": "ホグワーツ特急",
+      "routine": "gryffindor1"
+    },
+    {
+      "id": "lavender",
+      "name": "ラベンダー・ブラウン",
+      "description": "グリフィンドールの1年生。にぎやかで流行と噂が好き。パーバティの親友。",
+      "location": "ホグワーツ特急",
+      "routine": "gryffindor1"
+    },
+    {
+      "id": "padma",
+      "name": "パドマ・パチル",
+      "description": "レイブンクローの1年生。パーバティの双子の姉妹で、落ち着いていて成績優秀。",
+      "location": "ホグワーツ特急",
+      "routine": "ravenclaw1"
+    },
+    {
+      "id": "terry",
+      "name": "テリー・ブート",
+      "description": "レイブンクローの1年生。知りたがりで議論好き。図書館の常連。",
+      "location": "ホグワーツ特急",
+      "routine": "ravenclaw1"
+    },
+    {
+      "id": "hannah",
+      "name": "ハンナ・アボット",
+      "description": "ハッフルパフの1年生。素直で心配性、薬草学が得意。誰にでも親切。",
+      "location": "ホグワーツ特急",
+      "routine": "hufflepuff1"
+    },
+    {
+      "id": "justin",
+      "name": "ジャスティン・フィンチ＝フレッチリー",
+      "description": "ハッフルパフの1年生。マグル生まれで、名門校に入るはずだったことをよく話す、気さくなおしゃべり。",
+      "location": "ホグワーツ特急",
+      "routine": "hufflepuff1"
+    },
+    {
+      "id": "ernie",
+      "name": "アーニー・マクミラン",
+      "description": "ハッフルパフの1年生。純血の家柄で、少しもったいぶった話し方をするが、正義感が強い。",
+      "location": "ホグワーツ特急",
+      "routine": "hufflepuff1"
+    },
+    {
+      "id": "pansy",
+      "name": "パンジー・パーキンソン",
+      "description": "スリザリンの1年生。ドラコの取り巻きの女子で、意地悪な冷やかしが得意。",
+      "location": "ホグワーツ特急",
+      "routine": "slytherin1"
+    },
+    {
+      "id": "crabbe_goyle",
+      "name": "クラッブとゴイル",
+      "description": "スリザリンの1年生の大柄な二人組。ドラコの用心棒で、口数は少なく食べることが好き。",
+      "location": "ホグワーツ特急",
+      "routine": "slytherin1"
     }
   ],
   "hiddenPlot": "【真相：プレイヤーにも原作の人物にも明かさない。物語の中で少しずつ匂わせるだけにする】\n- ニコラス・フラメルが作った「賢者の石」が、7月31日にハグリッドの手でグリンゴッツ713番金庫からホグワーツに移された。その日のうちに金庫は何者かに破られたが、中は空だった。\n- 石は4階の右側の廊下の奥、三頭犬フラッフィー（ハグリッドの犬）が守る仕掛け扉の下に、先生たちの魔法の守りとともに隠されている。\n- クィレルはヴォルデモートに取りつかれており、後頭部（ターバンの下）にヴォルデモートの顔がある。石を盗んでヴォルデモートを復活させようとしている。ハロウィンのトロールは、クィレルが騒ぎに乗じて4階へ向かうために城に入れたもの。\n- スネイプはハリーを嫌っているが、実はハリーを守っており、クィレルを疑って見張っている。ハロウィンの夜、スネイプは4階に向かい、三頭犬に脚をかまれた。\n- ハリーの傷が痛むのはクィレルの後頭部のヴォルデモートのせいだが、ハリーはスネイプのせいだと思い込む。\n- 【進め方】この真相は学年末（1992年6月4日の夜）の山場まで明かさない。それまでは、プレイヤーと三人が小さな手がかりを一つずつ集め、スネイプを疑う誤解を深めていく流れにする。",
@@ -895,6 +1039,61 @@
           "op": "set_status",
           "target": "draco",
           "status": "absent"
+        },
+        {
+          "op": "set_status",
+          "target": "seamus",
+          "status": "absent"
+        },
+        {
+          "op": "set_status",
+          "target": "dean",
+          "status": "absent"
+        },
+        {
+          "op": "set_status",
+          "target": "parvati",
+          "status": "absent"
+        },
+        {
+          "op": "set_status",
+          "target": "lavender",
+          "status": "absent"
+        },
+        {
+          "op": "set_status",
+          "target": "padma",
+          "status": "absent"
+        },
+        {
+          "op": "set_status",
+          "target": "terry",
+          "status": "absent"
+        },
+        {
+          "op": "set_status",
+          "target": "hannah",
+          "status": "absent"
+        },
+        {
+          "op": "set_status",
+          "target": "justin",
+          "status": "absent"
+        },
+        {
+          "op": "set_status",
+          "target": "ernie",
+          "status": "absent"
+        },
+        {
+          "op": "set_status",
+          "target": "pansy",
+          "status": "absent"
+        },
+        {
+          "op": "set_status",
+          "target": "crabbe_goyle",
+          "status": "absent"
         }
       ]
     },
@@ -950,6 +1149,61 @@
         {
           "op": "set_status",
           "target": "draco",
+          "status": "active"
+        },
+        {
+          "op": "set_status",
+          "target": "seamus",
+          "status": "active"
+        },
+        {
+          "op": "set_status",
+          "target": "dean",
+          "status": "active"
+        },
+        {
+          "op": "set_status",
+          "target": "parvati",
+          "status": "active"
+        },
+        {
+          "op": "set_status",
+          "target": "lavender",
+          "status": "active"
+        },
+        {
+          "op": "set_status",
+          "target": "padma",
+          "status": "active"
+        },
+        {
+          "op": "set_status",
+          "target": "terry",
+          "status": "active"
+        },
+        {
+          "op": "set_status",
+          "target": "hannah",
+          "status": "active"
+        },
+        {
+          "op": "set_status",
+          "target": "justin",
+          "status": "active"
+        },
+        {
+          "op": "set_status",
+          "target": "ernie",
+          "status": "active"
+        },
+        {
+          "op": "set_status",
+          "target": "pansy",
+          "status": "active"
+        },
+        {
+          "op": "set_status",
+          "target": "crabbe_goyle",
           "status": "active"
         }
       ]
@@ -1416,7 +1670,7 @@
       "branchHint": "これで1年目の物語は終わる。プレイヤーの1年を振り返る締めくくりにする。"
     }
   ],
-  "opening": "1991年9月1日の朝、キングズ・クロス駅から物語を始めてください。プレイヤーがどうやって9と3/4番線にたどり着くか、ホグワーツ特急に乗り込むまでを描き、原作の人物（ハリー、ロン、ウィーズリー家、ハーマイオニー、ネビル、ドラコなど）のうち誰と最初に出会うかの選択肢を残してください。プレイヤーの寮はまだ決めません。最後に、プレイヤー自身の小さな謎や伏線を1つ考え、plot_note で残してください（原作の真相とは別のもの）。",
+  "opening": "1991年9月1日の朝、キングズ・クロス駅から物語を始めてください。プレイヤーがどうやって9と3/4番線にたどり着くか、ホグワーツ特急に乗り込むまでを描き、誰と最初に出会うかで過ごし方の入り口が変わるように、違う道につながる選択肢を残してください（例：ハリーとロンのコンパートメント＝本筋、双子に声をかけられる＝いたずら、本を読むハーマイオニー＝勉強、ほかの寮の新入生と話す＝友だち）。プレイヤーの寮はまだ決めません。最後に、プレイヤー自身の小さな謎や伏線を1つ考え、plot_note で残してください（原作の真相とは別のもの）。",
   "theme": "parchment",
   "map": {
     "width": 760,
@@ -1902,6 +2156,67 @@
         ]
       },
       "text": "スネイプ先生はプレイヤーを疑い、廊下や授業で行動を見張っている。"
+    },
+    {
+      "id": "path_mischief_rep",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_mischief",
+            "min": 40
+          }
+        ]
+      },
+      "text": "プレイヤーは双子の仲間として知られ、監督生や先生に目を光らされている。下級生や同級生には面白がられている。"
+    },
+    {
+      "id": "path_scholar_rep",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_scholar",
+            "min": 40
+          }
+        ]
+      },
+      "text": "プレイヤーは勉強家として知られ、宿題を見せてほしいと頼まれることが多い。"
+    },
+    {
+      "id": "path_quidditch_rep",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_quidditch",
+            "min": 40
+          }
+        ]
+      },
+      "text": "プレイヤーはクィディッチ好きとして知られ、選手たちと話す機会が多い。"
+    },
+    {
+      "id": "path_creatures_rep",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_creatures",
+            "min": 40
+          }
+        ]
+      },
+      "text": "プレイヤーはハグリッドの小屋によく出入りしており、ハグリッドは何かと気にかけてくれる。"
+    },
+    {
+      "id": "path_passages",
+      "when": {
+        "flags": {
+          "knows_passages": true
+        }
+      },
+      "text": "プレイヤーは城の隠し通路をいくつか知っている。夜に隠れて動く判定は、場所によっては1段易しくしてよい。"
     }
   ],
   "triggers": [
@@ -2167,6 +2482,519 @@
       },
       "title": "城の異変の噂",
       "text": "4階の廊下から夜中に唸り声が聞こえる、クィレル先生がまた何かに怯えていた、といった噂が生徒の間に広がる。"
+    },
+    {
+      "id": "mystery_30",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_mystery",
+            "min": 30
+          }
+        ]
+      },
+      "title": "最初の手がかり",
+      "text": "プレイヤーは城で起きている不審なこと（4階の廊下、スネイプの視線、ハグリッドの口ぶり）に一つの線を見いだし始める。ハリーたちがプレイヤーを仲間として話の輪に入れる。",
+      "effects": [
+        {
+          "op": "adjust_stat",
+          "target": "harry",
+          "key": "trust",
+          "delta": 10
+        }
+      ]
+    },
+    {
+      "id": "mystery_60",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_mystery",
+            "min": 60
+          }
+        ]
+      },
+      "title": "謎の核心へ",
+      "text": "プレイヤーは、何かが城に隠され守られていることを確信する。ハーマイオニーと調べものを分け合うようになり、プレイヤーの名前は三人の作戦にいつも入っている。",
+      "effects": [
+        {
+          "op": "adjust_stat",
+          "target": "hermione",
+          "key": "trust",
+          "delta": 10
+        },
+        {
+          "op": "set_flag",
+          "key": "in_trio_plans",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "scholar_30",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_scholar",
+            "min": 30
+          }
+        ]
+      },
+      "title": "先生に名前を覚えられる",
+      "text": "宿題の出来が評判になり、マクゴナガル先生やフリットウィック先生が授業でプレイヤーを指名するようになる。",
+      "effects": [
+        {
+          "op": "adjust_stat",
+          "target": "mcgonagall",
+          "key": "trust",
+          "delta": 10
+        },
+        {
+          "op": "adjust_stat",
+          "target": "player",
+          "key": "reputation",
+          "delta": 5
+        }
+      ]
+    },
+    {
+      "id": "scholar_60",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_scholar",
+            "min": 60
+          }
+        ]
+      },
+      "title": "ハーマイオニーとの首位争い",
+      "text": "小テストでプレイヤーがハーマイオニーと並ぶ点を取り、彼女が本気で対抗心を燃やし始める。図書館の同じ机を取り合う日々。",
+      "effects": [
+        {
+          "op": "adjust_stat",
+          "target": "hermione",
+          "key": "rivalry",
+          "delta": 20
+        },
+        {
+          "op": "adjust_stat",
+          "target": "player",
+          "key": "reputation",
+          "delta": 5
+        }
+      ]
+    },
+    {
+      "id": "scholar_90",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_scholar",
+            "min": 90
+          }
+        ]
+      },
+      "title": "学年首席の候補",
+      "text": "先生たちのあいだで、プレイヤーが学年首席の有力候補だと噂される。上級生が勉強を聞きに来ることもある。",
+      "effects": [
+        {
+          "op": "set_flag",
+          "key": "top_student_candidate",
+          "value": true
+        },
+        {
+          "op": "adjust_stat",
+          "target": "player",
+          "key": "reputation",
+          "delta": 10
+        }
+      ]
+    },
+    {
+      "id": "quidditch_30",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_quidditch",
+            "min": 30
+          }
+        ]
+      },
+      "title": "キャプテンの目に留まる",
+      "text": "練習を見に通ううちに、寮チームのキャプテン（グリフィンドールならオリバー・ウッド）がプレイヤーの飛び方に興味を示す。",
+      "effects": [
+        {
+          "op": "adjust_stat",
+          "target": "wood",
+          "key": "trust",
+          "delta": 10
+        }
+      ]
+    },
+    {
+      "id": "quidditch_60",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_quidditch",
+            "min": 60
+          }
+        ]
+      },
+      "title": "練習に加わる",
+      "text": "キャプテンが、球拾いや練習相手としてチームの練習にプレイヤーを加える。上級生の選手たちと顔なじみになる。",
+      "effects": [
+        {
+          "op": "set_flag",
+          "key": "player_practice",
+          "value": true
+        },
+        {
+          "op": "adjust_stat",
+          "target": "player",
+          "key": "flying",
+          "delta": 5
+        }
+      ]
+    },
+    {
+      "id": "quidditch_90",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_quidditch",
+            "min": 90
+          }
+        ]
+      },
+      "title": "寮チームの選手に",
+      "text": "寮監の特別な許可で、プレイヤーは1年生ながら寮チームの選手（控えまたはチェイサーなど）に選ばれる。以後の試合では、プレイヤーも選手として判定を受ける。",
+      "effects": [
+        {
+          "op": "set_flag",
+          "key": "player_on_team",
+          "value": true
+        },
+        {
+          "op": "adjust_stat",
+          "target": "player",
+          "key": "reputation",
+          "delta": 15
+        }
+      ]
+    },
+    {
+      "id": "mischief_30",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_mischief",
+            "min": 30
+          }
+        ]
+      },
+      "title": "双子に気に入られる",
+      "text": "フレッドとジョージが、プレイヤーを見込みのある後輩として扱い始める。最初の小さないたずらを一緒に仕掛ける。",
+      "effects": [
+        {
+          "op": "adjust_stat",
+          "target": "twins",
+          "key": "trust",
+          "delta": 15
+        }
+      ]
+    },
+    {
+      "id": "mischief_60",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_mischief",
+            "min": 60
+          }
+        ]
+      },
+      "title": "秘密の抜け道",
+      "text": "双子が、城の隠し通路をいくつか教えてくれる（鏡の裏の通路、動く階段の近道など）。夜に隠れて動くのが少し楽になる。",
+      "effects": [
+        {
+          "op": "set_flag",
+          "key": "knows_passages",
+          "value": true
+        },
+        {
+          "op": "adjust_stat",
+          "target": "filch",
+          "key": "suspicion",
+          "delta": 10
+        }
+      ]
+    },
+    {
+      "id": "mischief_90",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_mischief",
+            "min": 90
+          }
+        ]
+      },
+      "title": "伝説のいたずら",
+      "text": "プレイヤーが仕掛けたいたずらが城じゅうの語り草になる。ピーブズさえ感心し、フィルチは名前を聞くだけで顔をしかめる。",
+      "effects": [
+        {
+          "op": "adjust_stat",
+          "target": "player",
+          "key": "reputation",
+          "delta": 10
+        },
+        {
+          "op": "adjust_stat",
+          "target": "peeves",
+          "key": "affinity",
+          "delta": 20
+        }
+      ]
+    },
+    {
+      "id": "creatures_30",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_creatures",
+            "min": 30
+          }
+        ]
+      },
+      "title": "ハグリッドの手伝い",
+      "text": "プレイヤーはハグリッドの小屋の常連になり、ファングの散歩やかぼちゃ畑の世話を任される。",
+      "effects": [
+        {
+          "op": "adjust_stat",
+          "target": "hagrid",
+          "key": "trust",
+          "delta": 15
+        }
+      ]
+    },
+    {
+      "id": "creatures_60",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_creatures",
+            "min": 60
+          }
+        ]
+      },
+      "title": "森の入口の生き物たち",
+      "text": "ハグリッドが、森の入口でユニコーンの足跡やケンタウルスの話をしてくれる。プレイヤーは危ない生き物の扱い方を少しずつ覚える。",
+      "effects": [
+        {
+          "op": "set_flag",
+          "key": "creature_handler",
+          "value": true
+        },
+        {
+          "op": "adjust_stat",
+          "target": "player",
+          "key": "herbology",
+          "delta": 3
+        }
+      ]
+    },
+    {
+      "id": "creatures_90",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_creatures",
+            "min": 90
+          }
+        ]
+      },
+      "title": "ハグリッドの秘密",
+      "text": "ハグリッドが、誰にも言えない生き物の秘密（ドラゴンの卵のことなど）をプレイヤーに打ち明けるほど信頼する。",
+      "effects": [
+        {
+          "op": "set_flag",
+          "key": "hagrid_confidant",
+          "value": true
+        },
+        {
+          "op": "set_flag",
+          "key": "player_with_norbert",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "friends_30",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_friends",
+            "min": 30
+          }
+        ]
+      },
+      "title": "他寮の友だち",
+      "text": "授業や図書館で、他寮の同級生（パドマ、ハンナ、ジャスティンなど）と気軽に話す仲になる。",
+      "effects": [
+        {
+          "op": "adjust_stat",
+          "target": "player",
+          "key": "reputation",
+          "delta": 5
+        }
+      ]
+    },
+    {
+      "id": "friends_60",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_friends",
+            "min": 60
+          }
+        ]
+      },
+      "title": "寮を越えた仲間",
+      "text": "プレイヤーのまわりに、寮を越えて集まる仲間の輪ができる。困ったときに誰かが助けに来てくれる。",
+      "effects": [
+        {
+          "op": "set_flag",
+          "key": "cross_house_friends",
+          "value": true
+        },
+        {
+          "op": "adjust_stat",
+          "target": "player",
+          "key": "reputation",
+          "delta": 5
+        }
+      ]
+    },
+    {
+      "id": "friends_90",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_friends",
+            "min": 90
+          }
+        ]
+      },
+      "title": "誰からも頼られる",
+      "text": "プレイヤーは学年の誰とでも話せる存在になり、もめごとの仲裁を頼まれるほどになる。",
+      "effects": [
+        {
+          "op": "adjust_stat",
+          "target": "player",
+          "key": "reputation",
+          "delta": 10
+        },
+        {
+          "op": "adjust_stat",
+          "target": "draco",
+          "key": "rivalry",
+          "delta": -10
+        }
+      ]
+    },
+    {
+      "id": "house_30",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_house",
+            "min": 30
+          }
+        ]
+      },
+      "title": "寮の仲間に認められる",
+      "text": "寮の談話室で、プレイヤーは頼れる1年生として上級生に名前を覚えられる。",
+      "effects": [
+        {
+          "op": "adjust_stat",
+          "target": "percy",
+          "key": "trust",
+          "delta": 10
+        }
+      ]
+    },
+    {
+      "id": "house_60",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_house",
+            "min": 60
+          }
+        ]
+      },
+      "title": "寮点の稼ぎ頭",
+      "text": "プレイヤーの活躍で寮点がよく入るようになり、寮監から直接ほめられる。",
+      "effects": [
+        {
+          "op": "adjust_stat",
+          "target": "player",
+          "key": "reputation",
+          "delta": 5
+        },
+        {
+          "op": "set_flag",
+          "key": "house_pillar",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "house_90",
+      "when": {
+        "stats": [
+          {
+            "target": "player",
+            "key": "path_house",
+            "min": 90
+          }
+        ]
+      },
+      "title": "寮杯の立役者",
+      "text": "プレイヤーは寮の誇りと呼ばれる。学年度末の宴で、寮監がプレイヤーの名前を挙げて加点する理由ができる。",
+      "effects": [
+        {
+          "op": "set_flag",
+          "key": "house_hero",
+          "value": true
+        },
+        {
+          "op": "adjust_stat",
+          "target": "player",
+          "key": "reputation",
+          "delta": 10
+        }
+      ]
     }
   ],
   "drift": [
@@ -2286,6 +3114,86 @@
       "深夜": "スリザリンの談話室",
       "休:午前の授業": "スリザリンの談話室",
       "休:午後の授業": "校庭"
+    },
+    "ravenclaw1": {
+      "朝": "大広間",
+      "月:午前の授業": "闇の魔術に対する防衛術の教室",
+      "月:午後の授業": "呪文学の教室",
+      "火:午前の授業": "温室",
+      "火:午後の授業": "変身術の教室",
+      "水:午前の授業": "魔法史の教室",
+      "水:午後の授業": "呪文学の教室",
+      "木:午前の授業": "魔法薬学の教室",
+      "木:午後の授業": "変身術の教室",
+      "金:午前の授業": "温室",
+      "金:午後の授業": "クィディッチ競技場",
+      "放課後": "図書館",
+      "夜": "大広間",
+      "深夜": "レイブンクロー塔",
+      "休:午前の授業": "図書館",
+      "休:午後の授業": "湖"
+    },
+    "hufflepuff1": {
+      "朝": "大広間",
+      "月:午前の授業": "温室",
+      "月:午後の授業": "闇の魔術に対する防衛術の教室",
+      "火:午前の授業": "魔法史の教室",
+      "火:午後の授業": "呪文学の教室",
+      "水:午前の授業": "変身術の教室",
+      "水:午後の授業": "温室",
+      "木:午前の授業": "魔法薬学の教室",
+      "木:午後の授業": "呪文学の教室",
+      "金:午前の授業": "変身術の教室",
+      "金:午後の授業": "クィディッチ競技場",
+      "放課後": "ハッフルパフの談話室",
+      "夜": "大広間",
+      "深夜": "ハッフルパフの談話室",
+      "休:午前の授業": "ハッフルパフの談話室",
+      "休:午後の授業": "校庭"
     }
-  }
+  },
+  "paths": [
+    {
+      "id": "mystery",
+      "title": "本筋：城の謎を追う",
+      "summary": "三頭犬が守るもの、スネイプやクィレルの不審な動き、ハリーたちの冒険に関わっていく。原作の大きな物語に乗る道。",
+      "stat": "path_mystery"
+    },
+    {
+      "id": "scholar",
+      "title": "学年首席を目指す",
+      "summary": "授業と宿題に打ち込み、先生たちに認められる。ハーマイオニーとの首位争いが待っている。",
+      "stat": "path_scholar"
+    },
+    {
+      "id": "quidditch",
+      "title": "クィディッチ",
+      "summary": "飛ぶことに夢中になり、寮チームの練習に顔を出す。腕を上げれば、1年生でも選手になれるかもしれない。",
+      "stat": "path_quidditch"
+    },
+    {
+      "id": "mischief",
+      "title": "いたずらと抜け道",
+      "summary": "フレッドとジョージに弟子入りし、城の隠し通路や仕掛けを覚える。フィルチとの追いかけっこがついて回る。",
+      "stat": "path_mischief"
+    },
+    {
+      "id": "creatures",
+      "title": "魔法生物とハグリッド",
+      "summary": "ハグリッドの小屋に通い、森の入口の生き物の世話を手伝う。危ない生き物の秘密を打ち明けられることもある。",
+      "stat": "path_creatures"
+    },
+    {
+      "id": "friends",
+      "title": "友だちの輪",
+      "summary": "寮の仲間や他寮の生徒と付き合いを広げる。困ったときに助けてくれる人、恋の予感も。",
+      "stat": "path_friends"
+    },
+    {
+      "id": "house",
+      "title": "寮のために",
+      "summary": "寮の行事や寮点稼ぎ、下級生の面倒、監督生の手伝いに力を注ぐ。寮杯の行方を左右する。",
+      "stat": "path_house"
+    }
+  ]
 }
