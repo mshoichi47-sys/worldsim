@@ -231,3 +231,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; line-height: 1.3; }
 .place-people { list-style: none; padding: 0; margin: 0.4rem 0 0; }
 .place-people li { display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; border-top: 1px solid var(--rule); }
 .place-people .btn { padding: 0.2em 0.7em; font-size: 0.85rem; }
+
+/* ===== 過ごし方・進み方 ===== */
+.path p { margin: -0.15rem 0 0.5rem; font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+.topbar .pace { border: 1px solid var(--lamp); color: var(--lamp); border-radius: 4px; padding: 0 0.35rem; margin-right: 0.5rem; font-size: 0.75rem; font-weight: 700; }

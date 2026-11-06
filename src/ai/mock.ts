@@ -23,6 +23,7 @@ export function mockProvider(): AIProvider {
       const cs = pack.characterStats[0]
       const checkable = pack.playerStats.filter((d) => d.checkable)
       const pick = (i: number) => checkable[(n + i) % Math.max(1, checkable.length)]
+      const path = (i: number) => pack.paths[(n + i) % Math.max(1, pack.paths.length)]?.id ?? ''
       const ops: object[] = [{ op: 'advance_time', ...(pack.time.slots?.length ? { slots: 1 } : { days: 7 }) }]
       if (ws) ops.push({ op: 'adjust_stat', target: 'world', key: ws.key, delta: n % 2 ? 3 : -2 })
       if (ch && cs) {
@@ -36,11 +37,12 @@ export function mockProvider(): AIProvider {
         narrative: `（テスト応答 ターン${n}）\nあなたは「${action}」。${ch ? `${ch.name}がそれを見ていた。` : ''}時間が少し過ぎた。`,
         check: checkable.length && n % 3 === 0 ? { key: pick(0).key, level: '普通' } : { key: '', level: 'なし' },
         suggestions: [
-          { text: '周りを見回す', key: '', level: 'なし' },
-          { text: checkable.length ? `${pick(1).label}を試す` : '誰かに話しかける', key: checkable.length ? pick(1).key : '', level: checkable.length ? '普通' : 'なし' },
-          { text: checkable.length ? `${pick(2).label}で難題に挑む` : '先へ進む', key: checkable.length ? pick(2).key : '', level: checkable.length ? '難' : 'なし' },
+          { text: '周りを見回す', key: '', level: 'なし', path: path(0) },
+          { text: checkable.length ? `${pick(1).label}を試す` : '誰かに話しかける', key: checkable.length ? pick(1).key : '', level: checkable.length ? '普通' : 'なし', path: path(1) },
+          { text: checkable.length ? `${pick(2).label}で難題に挑む` : '先へ進む', key: checkable.length ? pick(2).key : '', level: checkable.length ? '難' : 'なし', path: path(2) },
         ],
         ops,
+        next_pace: n % 4 === 0 ? '場面' : '日々',
       })
     },
   }

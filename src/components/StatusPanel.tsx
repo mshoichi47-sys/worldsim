@@ -74,7 +74,26 @@ export function StatusPanel({
       </h2>
       {game.player.location && <p className="where-now">いる場所：{game.player.location}</p>}
       {pack.map && <WorldMapView map={pack.map} game={game} onAction={onAction} />}
-      <Meters defs={pack.playerStats} values={game.player.stats} />
+      {pack.paths.length > 0 && (
+        <>
+          <h3 className="group">過ごし方（打ち込むほど進み、節目で出来事が起きる）</h3>
+          {pack.paths.map((p) => {
+            const def = pack.playerStats.find((d) => d.key === p.stat)
+            return (
+              def && (
+                <div className="path" key={p.id}>
+                  <Meter def={def} value={game.player.stats[def.key]} />
+                  <p>{p.summary}</p>
+                </div>
+              )
+            )
+          })}
+        </>
+      )}
+      <Meters
+        defs={pack.playerStats.filter((d) => !pack.paths.some((p) => p.stat === d.key))}
+        values={game.player.stats}
+      />
       {game.player.inventory.length > 0 && (
         <div className="tags" aria-label="持ち物">
           {game.player.inventory.map((it, i) => <span key={i}>{it}</span>)}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { resolveCheck } from '../engine/rules'
+import { dueEvents, resolveCheck } from '../engine/rules'
 import { formatDate, formatWhen } from '../engine/state'
 import type { Suggestion } from '../engine/types'
 import { useApp } from '../store'
@@ -34,6 +34,15 @@ export function Game() {
   }
   // 候補の成功率（今のステータスで計算。サイコロの目は関係ないので roll=0 を渡す）
   const chanceOf = (s: Suggestion) => (s.key ? resolveCheck(pack, game, s.key, s.level, 0) : undefined)
+  const pathTitle = (id?: string) => pack.paths.find((p) => p.id === id)?.title
+  // 次のターンの進み方（予定の出来事が来ていれば場面）
+  const nextPace = pack.time.digestDays ? (dueEvents(pack, game).length ? '場面' : (game.pace ?? '日々')) : undefined
+  const range = (from: string, to?: string) => {
+    if (!to) return formatDate(from)
+    const [, m1] = from.split('-')
+    const [, m2, d2] = to.split('-').map(Number)
+    return `${formatDate(from)}〜${m1 === String(m2).padStart(2, '0') ? '' : `${m2}月`}${d2}日`
+  }
   const retryOpening = game.cards.length === 0
 
   return (
@@ -41,7 +50,10 @@ export function Game() {
       <header className="topbar">
         <button className="back" onClick={goHome} aria-label="世界の選択に戻る">←</button>
         <span className="title">{pack.title}</span>
-        <span className="when">{formatWhen(pack, game)}</span>
+        <span className="when">
+          {nextPace === '場面' && <span className="pace">場面</span>}
+          {formatWhen(pack, game)}
+        </span>
       </header>
 
       <div className="main">
@@ -51,7 +63,10 @@ export function Game() {
               {game.cards.length === 0 && !busy && <p className="empty">導入場面を作れませんでした。下のボタンで再試行してください。</p>}
               {game.cards.map((c) => (
                 <article className={`card${isNew(c.turn) ? ' new' : ''}`} key={c.turn}>
-                  <div className="stamp">{formatDate(c.date)}{c.slot ? `　${c.slot}` : ''}</div>
+                  <div className="stamp">
+                    {range(c.date, c.dateEnd)}
+                    {!c.dateEnd && c.slot ? `　${c.slot}` : ''}
+                  </div>
                   <div>
                     {c.events?.map((t) => <div className="event-title" key={t}>{t}</div>)}
                     {c.turn > 1 && <div className="action">行動：<b>{c.action}</b></div>}
@@ -104,7 +119,11 @@ export function Game() {
                       return (
                         <button key={i} disabled={busy} onClick={() => send(s.text, s)}>
                           <span>{s.text}</span>
-                          {c && <small>{c.statLabel}・{c.level}　{c.chance}%</small>}
+                          {(c || s.path) && (
+                            <small>
+                              {[pathTitle(s.path), c && `${c.statLabel}・${c.level}　${c.chance}%`].filter(Boolean).join('　')}
+                            </small>
+                          )}
                         </button>
                       )
                     })}
