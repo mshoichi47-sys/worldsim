@@ -184,8 +184,10 @@ export async function runTurn(
     happened.push(title)
     next.events.push({ turn: state.turn + 1, date: d.date ?? state.date, text: title })
   }
-  // 経過した日数ぶん、世界の数値が勝手に動く（例：ほかの生徒の寮点）
-  for (const dr of driftAmounts(pack, next, daysBetween(state.date, next.date), rand)) {
+  // 経過した日数ぶん、世界の数値が勝手に動く（例：ほかの生徒の寮点）。
+  // この仕組みより前の古いセーブは、開始日からの分をまとめて追いつかせる
+  const driftFrom = state.driftedThrough ?? pack.time.start
+  for (const dr of driftAmounts(pack, next, daysBetween(driftFrom, next.date), rand)) {
     const def = pack.worldStats.find((w) => w.key === dr.key)
     if (!def) continue
     const before = next.worldStats[def.key]
@@ -193,6 +195,8 @@ export async function runTurn(
     const d = next.worldStats[def.key] - before
     if (d) applied.changes.push(`${def.label} ${d > 0 ? '+' : ''}${d}${dr.label ? `（${dr.label}）` : ''}`)
   }
+
+  next.driftedThrough = next.date
 
   // 人物の居場所：このターンにAIが動かした人物はそのまま、それ以外は日課どおりに動く
   const nowOrd = nowOrdinal(pack, next)

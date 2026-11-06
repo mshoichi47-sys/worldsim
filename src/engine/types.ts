@@ -293,6 +293,8 @@ export interface GameState {
   }
   characters: Record<string, CharacterState>
   flags: Record<string, string | boolean>
+  /** 日ごとの変動をどの日まで適用したか（古いセーブにはない） */
+  driftedThrough?: string
   /** 固定イベントの処理済み記録 */
   firedEvents: Record<string, 'canon' | 'diverged' | 'alt' | 'skipped'>
   /** 出来事の年表 */

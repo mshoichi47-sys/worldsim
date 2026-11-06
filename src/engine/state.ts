@@ -25,6 +25,7 @@ export function createInitialState(pack: WorldPack): GameState {
     },
     characters,
     flags: {},
+    driftedThrough: pack.time.start,
     firedEvents: {},
     events: [],
     summary: '',

@@ -104,10 +104,23 @@ describe('世界が勝手に動く', () => {
   it('時間が進んだターンに寮点が動き、カードに出る', async () => {
     const s = afterArrival()
     s.date = '1991-09-20'
+    s.driftedThrough = s.date
     for (const ev of pack.events) if (ev.date <= '1991-09-20') s.firedEvents[ev.id] = 'canon'
     const r = await runTurn(pack, s, '週末を過ごす', scripted({ ops: [{ op: 'advance_time', days: 3 }] }), 50, { rand: fixedRand(0.99) })
     expect(r.state.worldStats.points_ravenclaw).toBe(12)
     expect(r.state.cards.at(-1)?.changes).toContain('寮点：レイブンクロー +12（ほかの生徒）')
+  })
+
+  it('古いセーブは、開始日からの寮点の変動をまとめて追いつく', async () => {
+    const s = afterArrival()
+    s.date = '1991-09-11'
+    delete s.driftedThrough
+    for (const ev of pack.events) if (ev.date <= '1991-09-11') s.firedEvents[ev.id] = 'canon'
+    const r = await runTurn(pack, s, '様子を見る', scripted(), 50, { rand: fixedRand(0.99) })
+    expect(r.state.worldStats.points_slytherin).toBe(40) // 10日分
+    expect(r.state.driftedThrough).toBe('1991-09-11')
+    const r2 = await runTurn(pack, r.state, '様子を見る', scripted(), 50, { rand: fixedRand(0.99) })
+    expect(r2.state.worldStats.points_slytherin).toBe(40) // 同じ日なら増えない
   })
 
   it('人物は日課どおりに移動し、AIが動かした人物はその時間帯のあいだ留まる', async () => {
@@ -151,6 +164,7 @@ describe('出来事の判定と時期', () => {
   it('条件付きの判定は、条件を満たすときだけ振る', async () => {
     const s = createInitialState(pack)
     s.date = '1992-05-09'
+    s.driftedThrough = s.date
     s.slotIndex = 5
     for (const ev of pack.events) if (ev.id !== 'norbert_departure' && ev.date <= '1992-05-09') s.firedEvents[ev.id] = 'canon'
     const r1 = await runTurn(pack, s, '寮で眠る', scripted(), 50, { rand: fixedRand(0.99) })
